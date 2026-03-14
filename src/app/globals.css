@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8f9fa;
+  --foreground: #1b263b; /* Deep Navy text */
+  --card: #ffffff;
+  --card-foreground: #1b263b;
+  --border: #e2e8f0;
+  --primary: #415a77;
+  --primary-foreground: #ffffff;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --pastel-blue: #e0e1dd;
+  --pastel-green: #d8e2dc;
+  --pastel-pink: #f8edeb;
+  --pastel-yellow: #fcf4dd;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  
+  --color-pastel-blue: var(--pastel-blue);
+  --color-pastel-green: var(--pastel-green);
+  --color-pastel-pink: var(--pastel-pink);
+  --color-pastel-yellow: var(--pastel-yellow);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0d1b2a;
+    --foreground: #e0e1dd;
+    --card: #1b263b;
+    --card-foreground: #e0e1dd;
+    --border: #415a77;
+    --primary: #778da9;
+    --primary-foreground: #0d1b2a;
+    --muted: #1b263b;
+    --muted-foreground: #778da9;
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
