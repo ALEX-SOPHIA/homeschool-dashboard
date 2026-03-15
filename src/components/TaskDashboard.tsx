@@ -45,13 +45,13 @@ const INITIAL_TASK_GROUPS: TaskGroup[] = [
 ];
 
 interface TaskDashboardProps {
-    onStartTasks: (tasks: { id: string, title: string, subject: string }[]) => void;
+    onStartTasks: (tasks: { id: string, title: string, subject: string, targetDuration: string }[]) => void;
 }
 
 export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
     const [groups, setGroups] = useState<TaskGroup[]>(INITIAL_TASK_GROUPS);
-    // Map: taskId → { title, subject }
-    const [selected, setSelected] = useState<Map<string, { title: string; subject: string }>>(new Map());
+    // Map: taskId → { title, subject, targetDuration }
+    const [selected, setSelected] = useState<Map<string, { title: string; subject: string; targetDuration: string }>>(new Map());
 
     const addTask = (groupIdx: number) => {
         setGroups(prev => {
@@ -101,23 +101,23 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
     // State for tracking which cell is being edited
     const [editing, setEditing] = useState<{ id: string; field: 'title' | 'targetDuration' } | null>(null);
 
-    const toggle = (taskId: string, title: string, subject: string) => {
+    const toggle = (taskId: string, title: string, subject: string, targetDuration: string) => {
         setSelected(prev => {
             const next = new Map(prev);
             if (next.has(taskId)) next.delete(taskId);
-            else next.set(taskId, { title, subject });
+            else next.set(taskId, { title, subject, targetDuration });
             return next;
         });
     };
 
     const startSelected = () => {
-        const tasks = Array.from(selected.entries()).map(([id, { title, subject }]) => ({ id, title, subject }));
+        const tasks = Array.from(selected.entries()).map(([id, { title, subject, targetDuration }]) => ({ id, title, subject, targetDuration }));
         onStartTasks(tasks);
         setSelected(new Map());
     };
 
-    const startSingle = (id: string, title: string, subject: string) => {
-        onStartTasks([{ id, title, subject }]);
+    const startSingle = (id: string, title: string, subject: string, targetDuration: string) => {
+        onStartTasks([{ id, title, subject, targetDuration }]);
         setSelected(new Map());
     };
 
@@ -246,7 +246,7 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                                                     {/* Checkbox / Status icon — clicking toggles selection */}
                                                     <button
                                                         disabled={!canSelect}
-                                                        onClick={() => canSelect && toggle(task.id, task.title, group.title)}
+                                                        onClick={() => canSelect && toggle(task.id, task.title, group.title, task.targetDuration)}
                                                         className="shrink-0 disabled:cursor-default"
                                                         title={canSelect ? (isSelected ? 'Deselect' : 'Select to start with others') : ''}
                                                     >
@@ -264,66 +264,79 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
 
                                                     {/* Task name + actions */}
                                                     <div className="flex-1 min-w-0">
-                                                        {editing?.id === task.id && editing?.field === 'title' ? (
-                                                            <input
-                                                                autoFocus
-                                                                className="w-full text-sm font-semibold text-slate-700 bg-white border border-blue-300 rounded px-1 outline-none"
-                                                                defaultValue={task.title}
-                                                                onBlur={(e) => {
-                                                                    updateTask(groupIdx, task.id, { title: e.target.value });
-                                                                    setEditing(null);
-                                                                }}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') {
-                                                                        updateTask(groupIdx, task.id, { title: e.currentTarget.value });
-                                                                        setEditing(null);
-                                                                    }
-                                                                    if (e.key === 'Escape') setEditing(null);
-                                                                }}
-                                                            />
-                                                        ) : (
-                                                            <div 
-                                                                onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'title' })}
-                                                                className={`text-sm font-semibold truncate cursor-text hover:text-blue-600 transition-colors ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'}`}
-                                                            >
-                                                                {task.title}
+                                                        <div className="flex justify-between items-start">
+                                                            <div className="flex-1 min-w-0">
+                                                                {editing?.id === task.id && editing?.field === 'title' ? (
+                                                                    <input
+                                                                        autoFocus
+                                                                        className="w-full text-sm font-semibold text-slate-700 bg-white border border-blue-300 rounded px-1 outline-none"
+                                                                        defaultValue={task.title}
+                                                                        onBlur={(e) => {
+                                                                            updateTask(groupIdx, task.id, { title: e.target.value });
+                                                                            setEditing(null);
+                                                                        }}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') {
+                                                                                updateTask(groupIdx, task.id, { title: e.currentTarget.value });
+                                                                                setEditing(null);
+                                                                            }
+                                                                            if (e.key === 'Escape') setEditing(null);
+                                                                        }}
+                                                                    />
+                                                                ) : (
+                                                                    <div 
+                                                                        onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'title' })}
+                                                                        className={`text-sm font-semibold truncate cursor-text hover:text-blue-600 transition-colors ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'}`}
+                                                                    >
+                                                                        {task.title}
+                                                                    </div>
+                                                                )}
                                                             </div>
-                                                        )}
+
+                                                            {/* Overdue pill */}
+                                                            {task.isOverdue && task.status !== 'completed' && (
+                                                                <div className="shrink-0 ml-2 text-[8px] uppercase tracking-widest font-bold text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-md leading-none">
+                                                                    Late
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                         
                                                         <div className="flex items-center justify-between mt-1">
-                                                            {editing?.id === task.id && editing?.field === 'targetDuration' ? (
-                                                                <input
-                                                                    autoFocus
-                                                                    className="w-20 text-[11px] font-medium text-slate-400 bg-white border border-blue-300 rounded px-1 outline-none"
-                                                                    defaultValue={task.targetDuration}
-                                                                    onBlur={(e) => {
-                                                                        updateTask(groupIdx, task.id, { targetDuration: e.target.value });
-                                                                        setEditing(null);
-                                                                    }}
-                                                                    onKeyDown={(e) => {
-                                                                        if (e.key === 'Enter') {
-                                                                            updateTask(groupIdx, task.id, { targetDuration: e.currentTarget.value });
+                                                            <div className="flex-1">
+                                                                {editing?.id === task.id && editing?.field === 'targetDuration' ? (
+                                                                    <input
+                                                                        autoFocus
+                                                                        className="w-20 text-[11px] font-medium text-slate-400 bg-white border border-blue-300 rounded px-1 outline-none"
+                                                                        defaultValue={task.targetDuration}
+                                                                        onBlur={(e) => {
+                                                                            updateTask(groupIdx, task.id, { targetDuration: e.target.value });
                                                                             setEditing(null);
-                                                                        }
-                                                                        if (e.key === 'Escape') setEditing(null);
-                                                                    }}
-                                                                />
-                                                            ) : (
-                                                                <span 
-                                                                    onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'targetDuration' })}
-                                                                    className="text-[11px] text-slate-400 font-medium cursor-text hover:text-blue-600 transition-colors"
-                                                                >
-                                                                    {task.targetDuration}
-                                                                </span>
-                                                            )}
+                                                                        }}
+                                                                        onKeyDown={(e) => {
+                                                                            if (e.key === 'Enter') {
+                                                                                updateTask(groupIdx, task.id, { targetDuration: e.currentTarget.value });
+                                                                                setEditing(null);
+                                                                            }
+                                                                            if (e.key === 'Escape') setEditing(null);
+                                                                        }}
+                                                                    />
+                                                                ) : (
+                                                                    <span 
+                                                                        onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'targetDuration' })}
+                                                                        className="text-[11px] text-slate-400 font-medium cursor-text hover:text-blue-600 transition-colors"
+                                                                    >
+                                                                        {task.targetDuration}
+                                                                    </span>
+                                                                )}
+                                                            </div>
                                                             
                                                             {task.status !== 'completed' && (
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
-                                                                        startSingle(task.id, task.title, group.title);
+                                                                        startSingle(task.id, task.title, group.title, task.targetDuration);
                                                                     }}
-                                                                    className="bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 cursor-pointer shadow-sm transition-colors"
+                                                                    className="shrink-0 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 cursor-pointer shadow-sm transition-colors"
                                                                 >
                                                                     <PlayCircle size={10} />
                                                                     {task.status === 'in_progress' ? 'Resume' : 'Start'}
@@ -331,13 +344,6 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                                                             )}
                                                         </div>
                                                     </div>
-
-                                                    {/* Overdue pill */}
-                                                    {task.isOverdue && task.status !== 'completed' && (
-                                                        <div className="shrink-0 text-[9px] uppercase tracking-widest font-bold text-red-400 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-md">
-                                                            Late
-                                                        </div>
-                                                    )}
                                                 </div>
                                             </div>
                                         );
