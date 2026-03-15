@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Clock, CheckCircle2, PlayCircle, Plus, Image as ImageIcon, Circle } from 'lucide-react';
+import { Clock, CheckCircle2, PlayCircle, Plus, Image as ImageIcon, Circle, Trash2 } from 'lucide-react';
 
 type TaskStatus = 'pending' | 'in_progress' | 'completed';
 type TaskItem = { id: string; title: string; date: string; isOverdue?: boolean; status: TaskStatus; targetDuration: string; };
@@ -13,7 +13,7 @@ type TaskGroup = {
     tasks: TaskItem[];
 };
 
-const TASK_GROUPS: TaskGroup[] = [
+const INITIAL_TASK_GROUPS: TaskGroup[] = [
     {
         title: 'Jessy',
         duration: '3h',
@@ -49,8 +49,57 @@ interface TaskDashboardProps {
 }
 
 export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
+    const [groups, setGroups] = useState<TaskGroup[]>(INITIAL_TASK_GROUPS);
     // Map: taskId → { title, subject }
     const [selected, setSelected] = useState<Map<string, { title: string; subject: string }>>(new Map());
+
+    const addTask = (groupIdx: number) => {
+        setGroups(prev => {
+            const next = [...prev];
+            const newTask: TaskItem = {
+                id: Math.random().toString(36).substr(2, 9),
+                title: 'New Course',
+                date: 'Today',
+                status: 'pending',
+                targetDuration: '30m'
+            };
+            next[groupIdx] = {
+                ...next[groupIdx],
+                tasks: [...next[groupIdx].tasks, newTask]
+            };
+            return next;
+        });
+    };
+
+    const removeTask = (groupIdx: number, taskId: string) => {
+        setGroups(prev => {
+            const next = [...prev];
+            next[groupIdx] = {
+                ...next[groupIdx],
+                tasks: next[groupIdx].tasks.filter(t => t.id !== taskId)
+            };
+            return next;
+        });
+        setSelected(prev => {
+            const next = new Map(prev);
+            next.delete(taskId);
+            return next;
+        });
+    };
+
+    const updateTask = (groupIdx: number, taskId: string, updates: Partial<TaskItem>) => {
+        setGroups(prev => {
+            const next = [...prev];
+            next[groupIdx] = {
+                ...next[groupIdx],
+                tasks: next[groupIdx].tasks.map(t => t.id === taskId ? { ...t, ...updates } : t)
+            };
+            return next;
+        });
+    };
+
+    // State for tracking which cell is being edited
+    const [editing, setEditing] = useState<{ id: string; field: 'title' | 'targetDuration' } | null>(null);
 
     const toggle = (taskId: string, title: string, subject: string) => {
         setSelected(prev => {
@@ -128,7 +177,7 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                 style={{ scrollbarWidth: 'thin', scrollbarColor: '#e2e8f0 transparent' }}
             >
                 <div className="flex flex-row gap-5 h-full" style={{ width: 'max-content', minWidth: '100%' }}>
-                    {TASK_GROUPS.map((group, groupIdx) => {
+                    {groups.map((group, groupIdx) => {
                         const totalCourses = group.tasks.length;
                         const completedCourses = group.tasks.filter(t => t.status === 'completed').length;
                         const progressPercent = totalCourses > 0 ? (completedCourses / totalCourses) * 100 : 0;
@@ -172,7 +221,7 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                                         return (
                                             <div
                                                 key={task.id}
-                                                className={`rounded-xl px-3.5 py-3 border transition-all cursor-default ${
+                                                className={`group relative rounded-xl px-3.5 py-3 border transition-all cursor-default ${
                                                     isSelected
                                                         ? 'bg-blue-50 border-blue-300 shadow-sm shadow-blue-100'
                                                         : task.status === 'in_progress'
@@ -182,6 +231,17 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                                                         : 'bg-white border-slate-100 hover:border-slate-200'
                                                 }`}
                                             >
+                                                {/* Delete icon - appears on hover */}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        removeTask(groupIdx, task.id);
+                                                    }}
+                                                    className="absolute -right-2 -top-2 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-200 opacity-0 group-hover:opacity-100 transition-all shadow-sm z-10"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+
                                                 <div className="flex items-center gap-3">
                                                     {/* Checkbox / Status icon — clicking toggles selection */}
                                                     <button
@@ -204,22 +264,70 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
 
                                                     {/* Task name + actions */}
                                                     <div className="flex-1 min-w-0">
-                                                        <div className={`text-sm font-semibold truncate ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
-                                                            {task.title}
-                                                        </div>
-                                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                                            <span className="text-[11px] text-slate-400">{task.targetDuration}</span>
+                                                        {editing?.id === task.id && editing?.field === 'title' ? (
+                                                            <input
+                                                                autoFocus
+                                                                className="w-full text-sm font-semibold text-slate-700 bg-white border border-blue-300 rounded px-1 outline-none"
+                                                                defaultValue={task.title}
+                                                                onBlur={(e) => {
+                                                                    updateTask(groupIdx, task.id, { title: e.target.value });
+                                                                    setEditing(null);
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        updateTask(groupIdx, task.id, { title: e.currentTarget.value });
+                                                                        setEditing(null);
+                                                                    }
+                                                                    if (e.key === 'Escape') setEditing(null);
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <div 
+                                                                onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'title' })}
+                                                                className={`text-sm font-semibold truncate cursor-text hover:text-blue-600 transition-colors ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'}`}
+                                                            >
+                                                                {task.title}
+                                                            </div>
+                                                        )}
+                                                        
+                                                        <div className="flex items-center justify-between mt-1">
+                                                            {editing?.id === task.id && editing?.field === 'targetDuration' ? (
+                                                                <input
+                                                                    autoFocus
+                                                                    className="w-20 text-[11px] font-medium text-slate-400 bg-white border border-blue-300 rounded px-1 outline-none"
+                                                                    defaultValue={task.targetDuration}
+                                                                    onBlur={(e) => {
+                                                                        updateTask(groupIdx, task.id, { targetDuration: e.target.value });
+                                                                        setEditing(null);
+                                                                    }}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === 'Enter') {
+                                                                            updateTask(groupIdx, task.id, { targetDuration: e.currentTarget.value });
+                                                                            setEditing(null);
+                                                                        }
+                                                                        if (e.key === 'Escape') setEditing(null);
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <span 
+                                                                    onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'targetDuration' })}
+                                                                    className="text-[11px] text-slate-400 font-medium cursor-text hover:text-blue-600 transition-colors"
+                                                                >
+                                                                    {task.targetDuration}
+                                                                </span>
+                                                            )}
+                                                            
                                                             {task.status !== 'completed' && (
-                                                                <>
-                                                                    <span className="text-slate-200 text-[10px]">|</span>
-                                                                    <button
-                                                                        onClick={() => startSingle(task.id, task.title, group.title)}
-                                                                        className="text-[11px] font-bold text-blue-500 hover:text-blue-600 transition-colors flex items-center gap-0.5"
-                                                                    >
-                                                                        <PlayCircle size={11} />
-                                                                        {task.status === 'in_progress' ? 'Resume' : 'Start'}
-                                                                    </button>
-                                                                </>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        startSingle(task.id, task.title, group.title);
+                                                                    }}
+                                                                    className="bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 cursor-pointer shadow-sm transition-colors"
+                                                                >
+                                                                    <PlayCircle size={10} />
+                                                                    {task.status === 'in_progress' ? 'Resume' : 'Start'}
+                                                                </button>
                                                             )}
                                                         </div>
                                                     </div>
@@ -234,6 +342,17 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                                             </div>
                                         );
                                     })}
+                                </div>
+                                
+                                {/* Column Footer */}
+                                <div className="p-3 border-t border-slate-50">
+                                    <button 
+                                        onClick={() => addTask(groupIdx)}
+                                        className="w-full py-2 flex items-center justify-center gap-2 text-xs font-semibold text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all border border-dashed border-slate-200 hover:border-blue-200"
+                                    >
+                                        <Plus size={14} />
+                                        Add course
+                                    </button>
                                 </div>
                             </div>
                         );
