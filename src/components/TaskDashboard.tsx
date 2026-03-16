@@ -1,102 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Clock, CheckCircle2, PlayCircle, Plus, Image as ImageIcon, Circle, Trash2 } from 'lucide-react';
-
-type TaskStatus = 'pending' | 'in_progress' | 'completed';
-type TaskItem = { id: string; title: string; date: string; isOverdue?: boolean; status: TaskStatus; targetDuration: string; };
-
-type TaskGroup = {
-    title: string;
-    duration: string;
-    color: string;
-    tasks: TaskItem[];
-};
-
-const INITIAL_TASK_GROUPS: TaskGroup[] = [
-    {
-        title: 'Jessy',
-        duration: '3h',
-        color: 'from-violet-400 to-purple-500',
-        tasks: [
-            { id: '1', title: 'Mathematics', date: 'Today', status: 'completed', targetDuration: '45m' },
-            { id: '1b', title: 'Science Lab', date: 'Today', status: 'pending', targetDuration: '1h' },
-            { id: '2', title: 'English Reading', date: 'Yesterday', isOverdue: true, status: 'pending', targetDuration: '30m' }
-        ]
-    },
-    {
-        title: 'Joanna',
-        duration: '1h 30m',
-        color: 'from-cyan-400 to-teal-500',
-        tasks: [
-            { id: '3', title: 'Finnish Dictation', date: 'Today', status: 'pending', targetDuration: '30m' },
-            { id: '4', title: 'Art & Craft', date: '15 Mar', status: 'pending', targetDuration: '1h' }
-        ]
-    },
-    {
-        title: 'Josephine',
-        duration: '1h',
-        color: 'from-rose-400 to-pink-500',
-        tasks: [
-            { id: '5', title: 'WordDive', date: '13 Mar', isOverdue: true, status: 'pending', targetDuration: '30m' },
-            { id: '6', title: 'Music Practice', date: 'Today', status: 'pending', targetDuration: '30m' }
-        ]
-    },
-];
+import { useTaskStore } from '@/store/useTaskStore';
 
 interface TaskDashboardProps {
     onStartTasks: (tasks: { id: string, title: string, subject: string, targetDuration: string }[]) => void;
 }
 
 export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
-    const [groups, setGroups] = useState<TaskGroup[]>(INITIAL_TASK_GROUPS);
+    const { groups, addTask, removeTask, updateTask } = useTaskStore();
+    
     // Map: taskId → { title, subject, targetDuration }
     const [selected, setSelected] = useState<Map<string, { title: string; subject: string; targetDuration: string }>>(new Map());
 
-    const addTask = (groupIdx: number) => {
-        setGroups(prev => {
-            const next = [...prev];
-            const newTask: TaskItem = {
-                id: Math.random().toString(36).substr(2, 9),
-                title: 'New Course',
-                date: 'Today',
-                status: 'pending',
-                targetDuration: '30m'
-            };
-            next[groupIdx] = {
-                ...next[groupIdx],
-                tasks: [...next[groupIdx].tasks, newTask]
-            };
-            return next;
-        });
-    };
-
-    const removeTask = (groupIdx: number, taskId: string) => {
-        setGroups(prev => {
-            const next = [...prev];
-            next[groupIdx] = {
-                ...next[groupIdx],
-                tasks: next[groupIdx].tasks.filter(t => t.id !== taskId)
-            };
-            return next;
-        });
-        setSelected(prev => {
-            const next = new Map(prev);
-            next.delete(taskId);
-            return next;
-        });
-    };
-
-    const updateTask = (groupIdx: number, taskId: string, updates: Partial<TaskItem>) => {
-        setGroups(prev => {
-            const next = [...prev];
-            next[groupIdx] = {
-                ...next[groupIdx],
-                tasks: next[groupIdx].tasks.map(t => t.id === taskId ? { ...t, ...updates } : t)
-            };
-            return next;
-        });
-    };
+    // Hydration fix for persistent state
+    const [isHydrated, setIsHydrated] = useState(false);
+    useEffect(() => {
+        setIsHydrated(true);
+    }, []);
 
     // State for tracking which cell is being edited
     const [editing, setEditing] = useState<{ id: string; field: 'title' | 'targetDuration' } | null>(null);
@@ -120,6 +42,8 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
         onStartTasks([{ id, title, subject, targetDuration }]);
         setSelected(new Map());
     };
+
+    if (!isHydrated) return null; // or a skeleton loader
 
     return (
         <div className="flex-1 bg-[#f7f8fa] flex flex-col overflow-hidden h-[calc(100vh-64px)]">
