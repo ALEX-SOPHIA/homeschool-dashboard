@@ -38,6 +38,7 @@ interface TaskState {
     updateGroup: (groupIdx: number, updates: Partial<Omit<TaskGroup, 'tasks'>>) => void;
     addGroup: () => void;
     removeGroup: (groupIdx: number) => void;
+    completeTask: (taskId: string) => void;
 }
 
 const INITIAL_TASK_GROUPS: TaskGroup[] = [
@@ -124,6 +125,15 @@ export const useTaskStore = create<TaskState>()(
             removeGroup: (groupIdx) => set((state) => ({
                 groups: state.groups.filter((_, i) => i !== groupIdx)
             })),
+            completeTask: (taskId) => set((state) => {
+                const next = state.groups.map(group => ({
+                    ...group,
+                    tasks: group.tasks.map(task => 
+                        task.id === taskId ? { ...task, status: 'completed' as TaskStatus } : task
+                    )
+                }));
+                return { groups: next };
+            }),
         }),
         {
             name: 'homeschool-tasks-storage',

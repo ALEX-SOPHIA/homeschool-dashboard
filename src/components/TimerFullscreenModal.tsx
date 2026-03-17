@@ -1,7 +1,6 @@
-'use client';
-
 import { useConcurrentTimers } from '@/hooks/useConcurrentTimers';
 import { TimerSession, useTimerStore } from '@/store/useTimerStore';
+import { useTaskStore } from '@/store/useTaskStore';
 import { motion, useAnimationFrame, useMotionValue, useTransform } from 'framer-motion';
 import { Play, Pause, Trash2, CheckCircle2, Minimize2, User } from 'lucide-react';
 
@@ -50,13 +49,22 @@ export default function TimerFullscreenModal({ sessions }: TimerFullscreenModalP
 function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti: boolean }) {
     const totalDurationMs = session.totalDurationMs || 3600000;
     const { start, pause, reset, getElapsedMs, remove } = useConcurrentTimers();
+    const { completeTask } = useTaskStore();
     const elapsedMotion = useMotionValue(getElapsedMs(session.id));
+
+    const handleComplete = () => {
+        // ID is stored as `session-${taskId}` in page.tsx
+        const taskId = session.id.replace('session-', '');
+        completeTask(taskId);
+        remove(session.id);
+    };
 
     useAnimationFrame(() => {
         const elapsed = getElapsedMs(session.id);
         if (elapsed >= totalDurationMs && session.isRunning) {
             pause(session.id);
             elapsedMotion.set(totalDurationMs);
+            handleComplete();
         } else {
             elapsedMotion.set(elapsed);
         }
@@ -161,7 +169,6 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
                     <button
                         onClick={() => {
                             remove(session.id);
-                            // In a real app, you would log nothing to the DB here (session cancelled)
                         }}
                         className="p-3 sm:p-4 text-white/30 hover:bg-red-500/20 hover:text-red-400 rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-red-400"
                         aria-label="Cancel Timer"
@@ -188,11 +195,8 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
                     )}
 
                     <button
-                        onClick={() => {
-                            remove(session.id);
-                            // In a real app, this would log the `session.accumulatedTime` to DB
-                        }}
-                        className="p-3 sm:p-4 text-white/30 hover:bg-emerald-500/20 hover:text-emerald-400 rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+                        onClick={handleComplete}
+                        className="p-3 sm:p-4 text-white/30 hover:bg-emerald-500/20 hover:text-emerald-400 hover:scale-110 active:scale-95 rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
                         aria-label="Complete Session"
                     >
                         <CheckCircle2 size={isMulti ? 26 : 30} />
