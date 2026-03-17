@@ -111,44 +111,108 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                     </div>
                 </div>
 
-                {/* Stats */}
-                <div className="grid grid-cols-4 gap-3 bg-white p-5 rounded-2xl shadow-sm border border-slate-100 mb-5">
-                    <div className="text-center">
-                        <div className="text-2xl font-bold text-slate-800">6<span className="text-base font-normal text-slate-400">h</span> 30<span className="text-base font-normal text-slate-400">m</span></div>
-                        <div className="text-[10px] text-slate-400 font-semibold mt-0.5 uppercase tracking-wider">Estimated</div>
-                    </div>
-                    <div className="text-center border-l border-slate-100">
-                        <div className="text-2xl font-bold text-slate-800">
-                            {groups.reduce((acc, g) => acc + g.tasks.length, 0)}
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-semibold mt-0.5 uppercase tracking-wider">Courses Today</div>
-                    </div>
-                    <div className="text-center border-l border-slate-100">
-                        <div className="text-2xl font-bold text-slate-800">0<span className="text-base font-normal text-slate-400">m</span></div>
-                        <div className="text-[10px] text-slate-400 font-semibold mt-0.5 uppercase tracking-wider">Elapsed</div>
-                    </div>
-                    <div className="text-center border-l border-slate-100">
-                        <div className="text-2xl font-bold text-emerald-500">
-                            {groups.reduce((acc, g) => acc + g.tasks.filter(t => t.status === 'completed').length, 0)}
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-semibold mt-0.5 uppercase tracking-wider">Completed</div>
-                    </div>
-                </div>
+                {/* Rocket Launchpad Gamification */}
+                {(() => {
+                    const totalTasks = groups.reduce((acc, g) => acc + g.tasks.length, 0);
+                    const completedTasks = groups.reduce((acc, g) => acc + g.tasks.filter(t => t.status === 'completed').length, 0);
+                    const percentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+                    const isLaunched = percentage === 100 && totalTasks > 0;
 
-                {/* Add Task Input Placeholder */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-100 px-4 py-3 flex items-center gap-3 opacity-50 cursor-not-allowed">
-                    <Plus className="text-slate-300 shrink-0" size={18} />
-                    <input
-                        type="text"
-                        disabled
-                        placeholder="Select a child below to add courses"
-                        className="flex-1 outline-none text-slate-600 placeholder:text-slate-300 bg-transparent text-sm cursor-not-allowed"
-                    />
-                    <div className="flex gap-2 text-slate-200">
-                        <Clock size={15} />
-                        <ImageIcon size={15} className="text-blue-400" />
-                    </div>
-                </div>
+                    return (
+                        <div className="bg-[#0f172a] p-6 rounded-3xl shadow-2xl mb-8 relative overflow-hidden min-h-[160px] flex items-center justify-between border border-slate-800">
+                            {/* Starry Background Effect */}
+                            <div className="absolute inset-0 opacity-20 pointer-events-none">
+                                {[...Array(20)].map((_, i) => (
+                                    <div 
+                                        key={i}
+                                        className="absolute bg-white rounded-full animate-pulse"
+                                        style={{
+                                            top: `${Math.random() * 100}%`,
+                                            left: `${Math.random() * 100}%`,
+                                            width: `${Math.random() * 3}px`,
+                                            height: `${Math.random() * 3}px`,
+                                            animationDelay: `${Math.random() * 3}s`
+                                        }}
+                                    />
+                                ))}
+                            </div>
+
+                            {isLaunched ? (
+                                <div className="flex-1 flex flex-col items-center justify-center relative z-10 animate-in fade-in zoom-in duration-700">
+                                    <div className="text-6xl mb-4 animate-bounce">🌕</div>
+                                    <h3 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-indigo-400 tracking-tighter uppercase italic">
+                                        LIFTOFF! 🚀✨
+                                    </h3>
+                                    <p className="text-slate-400 font-bold text-lg mt-2 tracking-wide uppercase">
+                                        Mission accomplished! Everything is finished!
+                                    </p>
+                                </div>
+                            ) : (
+                                <>
+                                    {/* Left: Energy Bank */}
+                                    <div className="flex flex-col gap-3 relative z-10 w-1/2">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Energy Bank</h3>
+                                        </div>
+                                        <div className="flex flex-wrap gap-1.5 max-w-[280px]">
+                                            {[...Array(totalTasks)].map((_, i) => (
+                                                <div 
+                                                    key={i}
+                                                    className={`w-3 h-5 rounded-[4px] transition-all duration-500 ${
+                                                        i < completedTasks 
+                                                            ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]' 
+                                                            : 'bg-slate-800 border border-slate-700 opacity-60'
+                                                    }`}
+                                                />
+                                            ))}
+                                            {totalTasks === 0 && (
+                                                <div className="text-slate-600 text-[10px] italic">Awaiting missions...</div>
+                                            )}
+                                        </div>
+                                        <div className="mt-2">
+                                            <span className="text-emerald-400 font-black text-xs tabular-nums">
+                                                {completedTasks}/{totalTasks}
+                                            </span>
+                                            <span className="text-slate-500 font-bold text-[10px] ml-2 uppercase">Core charged</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Right: Rocket & Fuel */}
+                                    <div className="flex items-center gap-10 relative z-10 pr-10">
+                                        <div className="flex flex-col items-center">
+                                            {/* Master Fuel Bar */}
+                                            <div className="h-28 w-4 bg-slate-900 rounded-full border border-slate-800 p-[2px] mb-3 overflow-hidden flex flex-col justify-end">
+                                                <div 
+                                                    className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-1000 ease-out rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                                                    style={{ height: `${percentage}%` }}
+                                                />
+                                            </div>
+                                            <span className="text-[9px] font-black text-slate-500 uppercase">Fuel</span>
+                                        </div>
+
+                                        <div className="relative group">
+                                            {/* Thrust Glow */}
+                                            <div 
+                                                className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-12 h-12 bg-orange-500 rounded-full blur-2xl opacity-20 animate-pulse transition-all duration-1000"
+                                                style={{ opacity: (percentage / 100) * 0.4 }}
+                                            />
+                                            
+                                            <div className="relative text-6xl group-hover:scale-110 transition-transform cursor-pointer select-none">
+                                                🚀
+                                            </div>
+
+                                            {/* Percentage Label */}
+                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                                                <span className="text-[10px] font-black text-white">{Math.round(percentage)}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* Kanban board — responsive grid with wrapping */}
