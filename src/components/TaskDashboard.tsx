@@ -64,6 +64,15 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
         setSelected(new Map());
     };
 
+    const completeSelected = () => {
+        const ids = Array.from(selected.keys());
+        ids.forEach(id => {
+            // we use the existing completeTask action from the store
+            useTaskStore.getState().completeTask(id);
+        });
+        setSelected(new Map());
+    };
+
     if (!isHydrated) return null; // or a skeleton loader
 
     return (
@@ -405,6 +414,13 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                                 className="text-slate-400 hover:text-white text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-700"
                             >
                                 Cancel
+                            </button>
+                            <button
+                                onClick={completeSelected}
+                                className="bg-green-500 hover:bg-green-600 text-white px-5 py-1.5 rounded-xl font-semibold transition-colors flex items-center gap-2 text-sm"
+                            >
+                                <CheckCircle2 size={15} />
+                                Mark as Done
                             </button>
                             <button
                                 onClick={startSelected}
