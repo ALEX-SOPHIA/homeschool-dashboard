@@ -109,7 +109,7 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
                         <circle
                             cx="250"
                             cy="250"
-                            r="220"
+                            r="240"
                             fill="none"
                             stroke="currentColor"
                             strokeWidth="16"
@@ -121,21 +121,21 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
                         <motion.circle
                             cx="250"
                             cy="250"
-                            r="220"
+                            r="240"
                             fill="none"
                             stroke={`url(#gradient-${session.id})`}
                             strokeWidth="16"
                             strokeLinecap="butt"
                             className={session.isRunning ? "drop-shadow-[0_0_15px_rgba(255,255,255,0.15)]" : "opacity-50"}
-                            strokeDasharray="1382"
-                            style={{ strokeDashoffset: useTransform(progress, (v) => 1382 - (1382 * v) / 100) }}
+                            strokeDasharray="1508"
+                            style={{ strokeDashoffset: useTransform(progress, (v) => 1508 - (1508 * v) / 100) }}
                         />
 
                         {/* Re-apply gap mask using dashed stroke over the top to 'cut out' the gradient */}
                         <circle
                             cx="250"
                             cy="250"
-                            r="220"
+                            r="240"
                             fill="none"
                             stroke="#0c0d10" /* Must match background! */
                             strokeWidth="18"
@@ -144,10 +144,13 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
                         />
                     </svg>
 
-                    <div className="flex flex-col items-center justify-center z-20 mt-1">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none">
                         <div
-                            className={`${isMulti ? 'text-5xl sm:text-6xl md:text-7xl lg:text-8xl' : 'text-6xl sm:text-8xl md:text-9xl'} font-bold tracking-[0.1em] -mr-[0.1em] tabular-nums text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.2)] leading-none`}
-                            style={{ fontFamily: 'var(--font-share-tech-mono), monospace' }}
+                            className="font-bold tracking-[0.05em] tabular-nums text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.2)] leading-none text-center"
+                            style={{ 
+                                fontFamily: 'var(--font-share-tech-mono), monospace',
+                                fontSize: isMulti ? 'min(11vw, 90px)' : 'min(17vw, 155px)',
+                            }}
                         >
                             <motion.span>{timeDisplay}</motion.span>
                         </div>

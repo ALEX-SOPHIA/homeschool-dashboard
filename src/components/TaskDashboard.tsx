@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Clock, CheckCircle2, PlayCircle, Plus, Image as ImageIcon, Circle, Trash2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Clock, CheckCircle2, PlayCircle, Plus, Image as ImageIcon, Circle, Trash2, UserPlus, X } from 'lucide-react';
 import { useTaskStore } from '@/store/useTaskStore';
 
 interface TaskDashboardProps {
@@ -9,7 +9,7 @@ interface TaskDashboardProps {
 }
 
 export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
-    const { groups, addTask, removeTask, updateTask } = useTaskStore();
+    const { groups, addTask, removeTask, updateTask, updateGroup, addGroup, removeGroup } = useTaskStore();
     
     // Map: taskId → { title, subject, targetDuration }
     const [selected, setSelected] = useState<Map<string, { title: string; subject: string; targetDuration: string }>>(new Map());
@@ -22,6 +22,27 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
 
     // State for tracking which cell is being edited
     const [editing, setEditing] = useState<{ id: string; field: 'title' | 'targetDuration' } | null>(null);
+    const [groupEditing, setGroupEditing] = useState<number | null>(null);
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploadingGroupIdx, setUploadingGroupIdx] = useState<number | null>(null);
+
+    const handleAvatarClick = (idx: number) => {
+        setUploadingGroupIdx(idx);
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file && uploadingGroupIdx !== null) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                updateGroup(uploadingGroupIdx, { avatar: reader.result as string });
+                setUploadingGroupIdx(null);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     const toggle = (taskId: string, title: string, subject: string, targetDuration: string) => {
         setSelected(prev => {
@@ -47,13 +68,21 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
 
     return (
         <div className="flex-1 bg-[#f7f8fa] flex flex-col overflow-hidden h-[calc(100vh-64px)]">
+            <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept="image/*" 
+                onChange={handleFileChange} 
+            />
+            
             {/* Constrained top section */}
             <div className="shrink-0 px-8 pt-8 pb-5">
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-800">Today&apos;s Dashboard</h2>
-                        <p className="text-sm text-slate-400 mt-0.5">Saturday, March 14 · 3 children active</p>
+                        <p className="text-sm text-slate-400 mt-0.5">Saturday, March 14 · {groups.length} children active</p>
                     </div>
                     <button className="p-2 border border-border rounded-xl bg-white hover:bg-slate-50 transition-colors shadow-sm">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500"><path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="m21 8-4-4-4 4" /><path d="M17 4v16" /></svg>
@@ -67,7 +96,9 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                         <div className="text-[10px] text-slate-400 font-semibold mt-0.5 uppercase tracking-wider">Estimated</div>
                     </div>
                     <div className="text-center border-l border-slate-100">
-                        <div className="text-2xl font-bold text-slate-800">7</div>
+                        <div className="text-2xl font-bold text-slate-800">
+                            {groups.reduce((acc, g) => acc + g.tasks.length, 0)}
+                        </div>
                         <div className="text-[10px] text-slate-400 font-semibold mt-0.5 uppercase tracking-wider">Courses Today</div>
                     </div>
                     <div className="text-center border-l border-slate-100">
@@ -75,18 +106,21 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                         <div className="text-[10px] text-slate-400 font-semibold mt-0.5 uppercase tracking-wider">Elapsed</div>
                     </div>
                     <div className="text-center border-l border-slate-100">
-                        <div className="text-2xl font-bold text-emerald-500">1</div>
+                        <div className="text-2xl font-bold text-emerald-500">
+                            {groups.reduce((acc, g) => acc + g.tasks.filter(t => t.status === 'completed').length, 0)}
+                        </div>
                         <div className="text-[10px] text-slate-400 font-semibold mt-0.5 uppercase tracking-wider">Completed</div>
                     </div>
                 </div>
 
-                {/* Add Task Input */}
-                <div className="bg-white rounded-xl shadow-sm border border-slate-100 px-4 py-3 flex items-center gap-3">
+                {/* Add Task Input Placeholder */}
+                <div className="bg-white rounded-xl shadow-sm border border-slate-100 px-4 py-3 flex items-center gap-3 opacity-50 cursor-not-allowed">
                     <Plus className="text-slate-300 shrink-0" size={18} />
                     <input
                         type="text"
-                        placeholder="Add a course... press Enter to save"
-                        className="flex-1 outline-none text-slate-600 placeholder:text-slate-300 bg-transparent text-sm"
+                        disabled
+                        placeholder="Select a child below to add courses"
+                        className="flex-1 outline-none text-slate-600 placeholder:text-slate-300 bg-transparent text-sm cursor-not-allowed"
                     />
                     <div className="flex gap-2 text-slate-200">
                         <Clock size={15} />
@@ -110,23 +144,68 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                         return (
                             <div
                                 key={groupIdx}
-                                className="w-[300px] shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden"
+                                className="w-[300px] shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden group/column"
                             >
                                 {/* Gradient header */}
-                                <div className={`bg-gradient-to-r ${group.color} p-4 text-white`}>
+                                <div className={`relative bg-gradient-to-r ${group.color} p-4 text-white`}>
+                                    {/* Delete column button */}
+                                    <button 
+                                        onClick={() => removeGroup(groupIdx)}
+                                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/10 hover:bg-red-500/80 flex items-center justify-center opacity-0 group-hover/column:opacity-100 transition-all border border-white/20"
+                                    >
+                                        <X size={12} />
+                                    </button>
+
                                     <div className="flex items-center gap-3 mb-3">
-                                        <div className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-sm font-bold border border-white/30">
-                                            {group.title.charAt(0)}
-                                        </div>
-                                        <div>
-                                            <div className="font-bold text-base leading-tight">{group.title}</div>
+                                        <button 
+                                            onClick={() => handleAvatarClick(groupIdx)}
+                                            className="relative w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-sm font-bold border border-white/30 overflow-hidden group/avatar"
+                                        >
+                                            {group.avatar ? (
+                                                <img src={group.avatar} alt={group.title} className="w-full h-full object-cover" />
+                                            ) : (
+                                                group.title.charAt(0)
+                                            )}
+                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                                                <ImageIcon size={12} />
+                                            </div>
+                                        </button>
+                                        
+                                        <div className="flex-1 min-w-0">
+                                            {groupEditing === groupIdx ? (
+                                                <input
+                                                    autoFocus
+                                                    className="w-full bg-white/20 border border-white/30 rounded px-1 outline-none text-base font-bold text-white placeholder:text-white/50"
+                                                    defaultValue={group.title}
+                                                    onBlur={(e) => {
+                                                        updateGroup(groupIdx, { title: e.target.value });
+                                                        setGroupEditing(null);
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter') {
+                                                            updateGroup(groupIdx, { title: e.currentTarget.value });
+                                                            setGroupEditing(null);
+                                                        }
+                                                        if (e.key === 'Escape') setGroupEditing(null);
+                                                    }}
+                                                />
+                                            ) : (
+                                                <div 
+                                                    onClick={() => setGroupEditing(groupIdx)}
+                                                    className="font-bold text-base leading-tight truncate cursor-text hover:bg-white/10 rounded px-1 -ml-1 transition-colors"
+                                                >
+                                                    {group.title}
+                                                </div>
+                                            )}
                                             <div className="text-white/70 text-xs">{group.duration} scheduled</div>
                                         </div>
-                                        <div className="ml-auto text-right">
+                                        
+                                        <div className="shrink-0 text-right">
                                             <div className="text-xl font-bold">{completedCourses}<span className="text-white/60 text-sm font-normal">/{totalCourses}</span></div>
                                             <div className="text-white/70 text-[10px] uppercase tracking-wide">Done</div>
                                         </div>
                                     </div>
+                                    
                                     <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
                                         <div
                                             className="h-full bg-white rounded-full transition-all duration-700 ease-out"
@@ -287,6 +366,15 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                             </div>
                         );
                     })}
+
+                    {/* Add Child Column */}
+                    <div className="w-[300px] shrink-0 flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 hover:border-slate-300 hover:bg-slate-100/50 transition-all cursor-pointer group/add-child" onClick={addGroup}>
+                        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-slate-400 group-hover/add-child:text-blue-500 group-hover/add-child:scale-110 shadow-sm transition-all">
+                            <UserPlus size={24} />
+                        </div>
+                        <div className="mt-4 text-sm font-bold text-slate-400 group-hover/add-child:text-slate-500 transition-colors">Add Child</div>
+                        <div className="mt-1 text-xs text-slate-400/70">Create a new schedule</div>
+                    </div>
                 </div>
             </div>
 

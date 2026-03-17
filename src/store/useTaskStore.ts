@@ -16,14 +16,28 @@ export interface TaskGroup {
     title: string;
     duration: string;
     color: string;
+    avatar?: string; // data-URL for uploaded avatar image
     tasks: TaskItem[];
 }
+
+const GRADIENT_COLORS = [
+    'from-violet-400 to-purple-500',
+    'from-cyan-400 to-teal-500',
+    'from-rose-400 to-pink-500',
+    'from-amber-400 to-orange-500',
+    'from-emerald-400 to-green-500',
+    'from-blue-400 to-indigo-500',
+    'from-fuchsia-400 to-purple-500',
+];
 
 interface TaskState {
     groups: TaskGroup[];
     addTask: (groupIdx: number) => void;
     removeTask: (groupIdx: number, taskId: string) => void;
     updateTask: (groupIdx: number, taskId: string, updates: Partial<TaskItem>) => void;
+    updateGroup: (groupIdx: number, updates: Partial<Omit<TaskGroup, 'tasks'>>) => void;
+    addGroup: () => void;
+    removeGroup: (groupIdx: number) => void;
 }
 
 const INITIAL_TASK_GROUPS: TaskGroup[] = [
@@ -92,6 +106,24 @@ export const useTaskStore = create<TaskState>()(
                 };
                 return { groups: next };
             }),
+            updateGroup: (groupIdx, updates) => set((state) => {
+                const next = [...state.groups];
+                next[groupIdx] = { ...next[groupIdx], ...updates };
+                return { groups: next };
+            }),
+            addGroup: () => set((state) => {
+                const colorIdx = state.groups.length % GRADIENT_COLORS.length;
+                const newGroup: TaskGroup = {
+                    title: 'New Child',
+                    duration: '0m',
+                    color: GRADIENT_COLORS[colorIdx],
+                    tasks: []
+                };
+                return { groups: [...state.groups, newGroup] };
+            }),
+            removeGroup: (groupIdx) => set((state) => ({
+                groups: state.groups.filter((_, i) => i !== groupIdx)
+            })),
         }),
         {
             name: 'homeschool-tasks-storage',
