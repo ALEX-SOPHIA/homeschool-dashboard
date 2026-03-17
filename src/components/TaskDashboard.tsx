@@ -129,12 +129,9 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                 </div>
             </div>
 
-            {/* Kanban board — full-width with horizontal scroll */}
-            <div
-                className="flex-1 overflow-x-auto overflow-y-hidden px-8 pb-8"
-                style={{ scrollbarWidth: 'thin', scrollbarColor: '#e2e8f0 transparent' }}
-            >
-                <div className="flex flex-row gap-5 h-full" style={{ width: 'max-content', minWidth: '100%' }}>
+            {/* Kanban board — responsive grid with wrapping */}
+            <div className="flex-1 overflow-y-auto px-8 pb-8 scroll-smooth">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6 items-start">
                     {groups.map((group, groupIdx) => {
                         const totalCourses = group.tasks.length;
                         const completedCourses = group.tasks.filter(t => t.status === 'completed').length;
@@ -368,7 +365,10 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                     })}
 
                     {/* Add Child Column */}
-                    <div className="w-[300px] shrink-0 flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 hover:border-slate-300 hover:bg-slate-100/50 transition-all cursor-pointer group/add-child" onClick={addGroup}>
+                    <div 
+                        className="h-[200px] flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 hover:border-slate-300 hover:bg-slate-100/50 transition-all cursor-pointer group/add-child" 
+                        onClick={addGroup}
+                    >
                         <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-slate-400 group-hover/add-child:text-blue-500 group-hover/add-child:scale-110 shadow-sm transition-all">
                             <UserPlus size={24} />
                         </div>
