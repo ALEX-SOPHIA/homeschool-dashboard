@@ -39,6 +39,7 @@ interface TaskState {
     addGroup: () => void;
     removeGroup: (groupIdx: number) => void;
     completeTask: (taskId: string) => void;
+    undoTask: (taskId: string) => void;
 }
 
 const INITIAL_TASK_GROUPS: TaskGroup[] = [
@@ -130,6 +131,15 @@ export const useTaskStore = create<TaskState>()(
                     ...group,
                     tasks: group.tasks.map(task => 
                         task.id === taskId ? { ...task, status: 'completed' as TaskStatus } : task
+                    )
+                }));
+                return { groups: next };
+            }),
+            undoTask: (taskId) => set((state) => {
+                const next = state.groups.map(group => ({
+                    ...group,
+                    tasks: group.tasks.map(task => 
+                        task.id === taskId ? { ...task, status: 'pending' as TaskStatus } : task
                     )
                 }));
                 return { groups: next };

@@ -9,7 +9,7 @@ interface TaskDashboardProps {
 }
 
 export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
-    const { groups, addTask, removeTask, updateTask, updateGroup, addGroup, removeGroup } = useTaskStore();
+    const { groups, addTask, removeTask, updateTask, updateGroup, addGroup, removeGroup, undoTask } = useTaskStore();
     
     // Map: taskId → { title, subject, targetDuration }
     const [selected, setSelected] = useState<Map<string, { title: string; subject: string; targetDuration: string }>>(new Map());
@@ -267,10 +267,17 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                                                 <div className="flex items-center gap-3">
                                                     {/* Checkbox / Status icon — clicking toggles selection */}
                                                     <button
-                                                        disabled={!canSelect}
-                                                        onClick={() => canSelect && toggle(task.id, task.title, group.title, task.targetDuration)}
-                                                        className="shrink-0 disabled:cursor-default"
-                                                        title={canSelect ? (isSelected ? 'Deselect' : 'Select to start with others') : ''}
+                                                        disabled={!canSelect && task.status !== 'completed'}
+                                                        onClick={(e) => {
+                                                            if (task.status === 'completed') {
+                                                                e.stopPropagation();
+                                                                undoTask(task.id);
+                                                            } else if (canSelect) {
+                                                                toggle(task.id, task.title, group.title, task.targetDuration);
+                                                            }
+                                                        }}
+                                                        className={`shrink-0 ${task.status === 'completed' ? 'cursor-pointer hover:scale-110 active:scale-95 transition-transform hover:opacity-80' : 'disabled:cursor-default'}`}
+                                                        title={task.status === 'completed' ? 'Undo completion' : canSelect ? (isSelected ? 'Deselect' : 'Select to start with others') : ''}
                                                     >
                                                         {task.status === 'completed'
                                                             ? <CheckCircle2 size={18} className="text-emerald-500" />
