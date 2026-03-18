@@ -1,8 +1,139 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Clock, CheckCircle2, PlayCircle, Plus, Image as ImageIcon, Circle, Trash2, UserPlus, X } from 'lucide-react';
 import { useTaskStore } from '@/store/useTaskStore';
+
+/* ── Rocket Launchpad Sub-component ── */
+function RocketLaunchpad({ totalTasks, completedTasks, percentage, flameGlow }: {
+    totalTasks: number;
+    completedTasks: number;
+    percentage: number;
+    flameGlow: string;
+}) {
+    const [launchSequence, setLaunchSequence] = useState<'idle' | 'shaking' | 'whoosh' | 'celebration'>('idle');
+
+    // Stable star positions (avoid re-randomising on every render)
+    const stars = useMemo(() =>
+        [...Array(25)].map(() => ({
+            top: `${Math.random() * 100}%`,
+            left: `${Math.random() * 100}%`,
+            size: `${1 + Math.random() * 2}px`,
+            delay: `${Math.random() * 4}s`,
+        })), []);
+
+    // Multi-stage launch timer
+    useEffect(() => {
+        if (percentage === 100 && totalTasks > 0 && launchSequence === 'idle') {
+            setLaunchSequence('shaking');
+            const whooshTimer = setTimeout(() => setLaunchSequence('whoosh'), 1000);
+            const celebTimer = setTimeout(() => setLaunchSequence('celebration'), 1500);
+            return () => { clearTimeout(whooshTimer); clearTimeout(celebTimer); };
+        }
+        if (percentage < 100 && launchSequence !== 'idle') {
+            setLaunchSequence('idle');
+        }
+    }, [percentage, totalTasks, launchSequence]);
+
+    const isCelebrating = launchSequence === 'celebration';
+
+    return (
+        <div className="bg-[#0f172a] p-6 rounded-3xl shadow-2xl mb-8 relative overflow-hidden min-h-[160px] border border-slate-800">
+            {/* Stars */}
+            <div className="absolute inset-0 pointer-events-none">
+                {stars.map((s, i) => (
+                    <div
+                        key={i}
+                        className="absolute bg-white rounded-full animate-pulse opacity-30"
+                        style={{ top: s.top, left: s.left, width: s.size, height: s.size, animationDelay: s.delay }}
+                    />
+                ))}
+            </div>
+
+            {isCelebrating ? (
+                <div className="flex flex-col items-center justify-center relative z-10 py-4 animate-in fade-in zoom-in duration-700">
+                    <div className="text-6xl mb-4 animate-bounce">🌕</div>
+                    <h3 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-indigo-400 tracking-tighter uppercase italic">
+                        LIFTOFF! 🚀✨
+                    </h3>
+                    <p className="text-slate-400 font-bold text-lg mt-2 tracking-wide uppercase">
+                        Mission accomplished! Everything is finished!
+                    </p>
+                </div>
+            ) : (
+                <div className="max-w-4xl mx-auto flex items-center justify-center gap-6 relative z-10">
+                    {/* Left: Energy Bank */}
+                    <div className="flex flex-col gap-3 shrink-0">
+                        <div className="flex items-center gap-2 mb-1">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Energy Bank</h3>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 max-w-[220px]">
+                            {[...Array(totalTasks)].map((_, i) => (
+                                <div
+                                    key={i}
+                                    className={`w-3 h-5 rounded-[4px] transition-all duration-500 ${
+                                        i < completedTasks
+                                            ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]'
+                                            : 'bg-slate-800 border border-slate-700 opacity-60'
+                                    }`}
+                                />
+                            ))}
+                            {totalTasks === 0 && (
+                                <div className="text-slate-600 text-[10px] italic">Awaiting missions...</div>
+                            )}
+                        </div>
+                        <div className="mt-1">
+                            <span className="text-emerald-400 font-black text-xs tabular-nums">{completedTasks}/{totalTasks}</span>
+                            <span className="text-slate-500 font-bold text-[10px] ml-2 uppercase">Core charged</span>
+                        </div>
+                    </div>
+
+                    {/* Center: Energy Conduit */}
+                    <div className="flex-1 min-w-[60px] max-w-[160px] relative h-[2px] border-t-2 border-dashed border-emerald-700/40 self-center">
+                        {completedTasks > 0 && [...Array(3)].map((_, i) => (
+                            <span
+                                key={i}
+                                className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-energy-particle"
+                                style={{ animationDelay: `${i * 0.6}s` }}
+                            />
+                        ))}
+                    </div>
+
+                    {/* Right: Rocket & Fuel */}
+                    <div className="flex items-center gap-6 shrink-0">
+                        <div className="flex flex-col items-center">
+                            <div className="h-28 w-4 bg-slate-900 rounded-full border border-slate-800 p-[2px] mb-3 overflow-hidden flex flex-col justify-end">
+                                <div
+                                    className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-1000 ease-out rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                                    style={{ height: `${percentage}%` }}
+                                />
+                            </div>
+                            <span className="text-[9px] font-black text-slate-500 uppercase">Fuel</span>
+                        </div>
+
+                        <div className={`relative ${launchSequence === 'shaking' ? 'animate-rocket-shake' : ''} ${launchSequence === 'whoosh' ? 'animate-rocket-liftoff' : ''}`}>
+                            {/* Flame Glow */}
+                            <div
+                                className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full transition-all duration-500"
+                                style={{ boxShadow: flameGlow }}
+                            />
+
+                            <div className="relative text-6xl select-none cursor-pointer hover:scale-110 transition-transform">
+                                🚀
+                            </div>
+
+                            {/* Percentage Label */}
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                                <span className="text-[10px] font-black text-white">{Math.round(percentage)}%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
 
 interface TaskDashboardProps {
     onStartTasks: (tasks: { id: string, title: string, subject: string, targetDuration: string }[]) => void;
@@ -116,101 +247,17 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                     const totalTasks = groups.reduce((acc, g) => acc + g.tasks.length, 0);
                     const completedTasks = groups.reduce((acc, g) => acc + g.tasks.filter(t => t.status === 'completed').length, 0);
                     const percentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-                    const isLaunched = percentage === 100 && totalTasks > 0;
+                    const flameGlow = percentage === 100
+                        ? '0 0 30px 10px rgba(249, 115, 22, 1), 0 0 100px 30px rgba(249, 115, 22, 0.8)'
+                        : `0 0 ${20 + percentage / 2}px rgba(249, 115, 22, ${0.4 + percentage / 200})`;
 
                     return (
-                        <div className="bg-[#0f172a] p-6 rounded-3xl shadow-2xl mb-8 relative overflow-hidden min-h-[160px] flex items-center justify-between border border-slate-800">
-                            {/* Starry Background Effect */}
-                            <div className="absolute inset-0 opacity-20 pointer-events-none">
-                                {[...Array(20)].map((_, i) => (
-                                    <div 
-                                        key={i}
-                                        className="absolute bg-white rounded-full animate-pulse"
-                                        style={{
-                                            top: `${Math.random() * 100}%`,
-                                            left: `${Math.random() * 100}%`,
-                                            width: `${Math.random() * 3}px`,
-                                            height: `${Math.random() * 3}px`,
-                                            animationDelay: `${Math.random() * 3}s`
-                                        }}
-                                    />
-                                ))}
-                            </div>
-
-                            {isLaunched ? (
-                                <div className="flex-1 flex flex-col items-center justify-center relative z-10 animate-in fade-in zoom-in duration-700">
-                                    <div className="text-6xl mb-4 animate-bounce">🌕</div>
-                                    <h3 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-indigo-400 tracking-tighter uppercase italic">
-                                        LIFTOFF! 🚀✨
-                                    </h3>
-                                    <p className="text-slate-400 font-bold text-lg mt-2 tracking-wide uppercase">
-                                        Mission accomplished! Everything is finished!
-                                    </p>
-                                </div>
-                            ) : (
-                                <>
-                                    {/* Left: Energy Bank */}
-                                    <div className="flex flex-col gap-3 relative z-10 w-1/2">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Energy Bank</h3>
-                                        </div>
-                                        <div className="flex flex-wrap gap-1.5 max-w-[280px]">
-                                            {[...Array(totalTasks)].map((_, i) => (
-                                                <div 
-                                                    key={i}
-                                                    className={`w-3 h-5 rounded-[4px] transition-all duration-500 ${
-                                                        i < completedTasks 
-                                                            ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]' 
-                                                            : 'bg-slate-800 border border-slate-700 opacity-60'
-                                                    }`}
-                                                />
-                                            ))}
-                                            {totalTasks === 0 && (
-                                                <div className="text-slate-600 text-[10px] italic">Awaiting missions...</div>
-                                            )}
-                                        </div>
-                                        <div className="mt-2">
-                                            <span className="text-emerald-400 font-black text-xs tabular-nums">
-                                                {completedTasks}/{totalTasks}
-                                            </span>
-                                            <span className="text-slate-500 font-bold text-[10px] ml-2 uppercase">Core charged</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Right: Rocket & Fuel */}
-                                    <div className="flex items-center gap-10 relative z-10 pr-10">
-                                        <div className="flex flex-col items-center">
-                                            {/* Master Fuel Bar */}
-                                            <div className="h-28 w-4 bg-slate-900 rounded-full border border-slate-800 p-[2px] mb-3 overflow-hidden flex flex-col justify-end">
-                                                <div 
-                                                    className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-1000 ease-out rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)]"
-                                                    style={{ height: `${percentage}%` }}
-                                                />
-                                            </div>
-                                            <span className="text-[9px] font-black text-slate-500 uppercase">Fuel</span>
-                                        </div>
-
-                                        <div className="relative group">
-                                            {/* Thrust Glow */}
-                                            <div 
-                                                className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-12 h-12 bg-orange-500 rounded-full blur-2xl opacity-20 animate-pulse transition-all duration-1000"
-                                                style={{ opacity: (percentage / 100) * 0.4 }}
-                                            />
-                                            
-                                            <div className="relative text-6xl group-hover:scale-110 transition-transform cursor-pointer select-none">
-                                                🚀
-                                            </div>
-
-                                            {/* Percentage Label */}
-                                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-lg whitespace-nowrap">
-                                                <span className="text-[10px] font-black text-white">{Math.round(percentage)}%</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-                        </div>
+                        <RocketLaunchpad
+                            totalTasks={totalTasks}
+                            completedTasks={completedTasks}
+                            percentage={percentage}
+                            flameGlow={flameGlow}
+                        />
                     );
                 })()}
             </div>
