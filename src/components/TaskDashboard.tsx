@@ -5,13 +5,17 @@ import { Clock, CheckCircle2, PlayCircle, Plus, Image as ImageIcon, Circle, Tras
 import { useTaskStore } from '@/store/useTaskStore';
 
 /* ── Rocket Launchpad Sub-component ── */
-function RocketLaunchpad({ totalTasks, completedTasks, percentage, flameGlow }: {
+function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
     totalTasks: number;
     completedTasks: number;
     percentage: number;
-    flameGlow: string;
 }) {
     const [launchStatus, setLaunchStatus] = useState<'idle' | 'shaking' | 'liftoff' | 'completed'>('idle');
+
+    // Dynamic Flame Calculations
+    const dynamicHeight = 8 + percentage / 6.25;
+    const dynamicOpacity = 0.3 + percentage / 142;
+    const dynamicGlow = `0 0 ${10 + percentage / 3.33}px ${2 + percentage / 12.5}px rgba(16, 185, 129, ${0.4 + percentage / 166})`;
 
     // Stable star positions (avoid re-randomising on every render)
     const stars = useMemo(() =>
@@ -115,19 +119,23 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage, flameGlow }: 
                             <span className="text-[9px] font-black text-slate-500 uppercase">Fuel</span>
                         </div>
 
+                        {/* Stationary Launch Dock (Gantry) */}
                         <div className="w-20 h-20 rounded-full bg-slate-950 flex items-center justify-center border border-slate-800 shadow-inner relative group">
-                            {/* Inner wrapper that actually flies out */}
-                            <div className={`relative ${
+                            
+                            {/* theFlyingVehicleContainer - Only this wrapper flies */}
+                            <div className={`theFlyingVehicleContainer relative ${
                                 launchStatus === 'shaking' ? 'animate-rocket-shake' : 
-                                launchStatus === 'liftoff' ? '-translate-y-[200vh] translate-x-[200vw] animate-rocket-liftoff transition-all duration-700 ease-in' : 'translate-y-0 translate-x-0'
+                                launchStatus === 'liftoff' ? '-translate-y-[200vh] translate-x-[200vw] animate-rocket-liftoff transition-all duration-700 ease-in' : 'translate-y-0 translate-x-0 transition-all duration-300'
                             }`}>
-                                {/* Flame Glow */}
+                                {/* Fluorescent Green Breathing Flame (Pre-warming) */}
                                 <div
-                                    className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full transition-all duration-500"
+                                    className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-10 rounded-full transition-all duration-300 bg-emerald-500/20"
                                     style={{ 
+                                        height: `${8 + percentage / 6.25}px`,
+                                        opacity: 0.3 + percentage / 142,
                                         boxShadow: (launchStatus === 'shaking' || launchStatus === 'liftoff')
                                             ? '0 0 30px 10px rgba(249, 115, 22, 1), 0 0 100px 30px rgba(249, 115, 22, 0.8)'
-                                            : flameGlow 
+                                            : `0 0 ${10 + percentage / 3.33}px ${2 + percentage / 12.5}px rgba(16, 185, 129, ${0.4 + percentage / 166})`
                                     }}
                                 />
 
@@ -267,16 +275,12 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                     const totalTasks = groups.reduce((acc, g) => acc + g.tasks.length, 0);
                     const completedTasks = groups.reduce((acc, g) => acc + g.tasks.filter(t => t.status === 'completed').length, 0);
                     const percentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-                    const flameGlow = percentage === 100
-                        ? '0 0 30px 10px rgba(249, 115, 22, 1), 0 0 100px 30px rgba(249, 115, 22, 0.8)'
-                        : `0 0 ${20 + percentage / 2}px rgba(249, 115, 22, ${0.4 + percentage / 200})`;
 
                     return (
                         <RocketLaunchpad
                             totalTasks={totalTasks}
                             completedTasks={completedTasks}
                             percentage={percentage}
-                            flameGlow={flameGlow}
                         />
                     );
                 })()}
