@@ -2,7 +2,8 @@
 
 :root {
   --background: #f8f9fa;
-  --foreground: #1b263b; /* Deep Navy text */
+  --foreground: #1b263b;
+  /* Deep Navy text */
   --card: #ffffff;
   --card-foreground: #1b263b;
   --border: #e2e8f0;
@@ -26,7 +27,7 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  
+
   --color-pastel-blue: var(--pastel-blue);
   --color-pastel-green: var(--pastel-green);
   --color-pastel-pink: var(--pastel-pink);
@@ -58,7 +59,37 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Rocket Launchpad Animations */
+/* 🚀 终极点火协议：全景 3D 轨迹与呼吸尾焰 */
+
+@keyframes cinematic-reentry-strike {
+  0% { transform: translate(0, 0) rotate(-45deg) scale(1); opacity: 1; }
+  30% { transform: translate(-30vw, -30vh) rotate(-45deg) scale(0.4); opacity: 0.8; }
+  60% { transform: translate(10vw, -55vh) rotate(50deg) scale(0.6); opacity: 0.9; }
+  85% { transform: translate(0, 0) rotate(10deg) scale(2.5); opacity: 0.95; }
+  100% { transform: translate(0, 0) rotate(0deg) scale(20); opacity: 0; }
+}
+
+.animate-cinematic-strike {
+  animation: cinematic-reentry-strike 1.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+@keyframes breath { 
+  0% { 
+    transform: scaleY(0.85); 
+    opacity: 0.8; 
+    box-shadow: 0 0 20px 5px rgba(16, 185, 129, 0.5); 
+  }
+  100% { 
+    transform: scaleY(1.1); 
+    opacity: 1; 
+    box-shadow: 0 0 45px 12px rgba(16, 185, 129, 0.9); 
+  }
+}
+
+.animate-breath {
+  animation: breath 1.5s infinite alternate ease-in-out;
+}
+
 @keyframes rocket-shake {
   0%, 100% { transform: translate(0, 0) rotate(0deg); }
   10% { transform: translate(-2px, 1px) rotate(-1deg); }
@@ -72,9 +103,8 @@ body {
   90% { transform: translate(0px, -2px) rotate(0deg); }
 }
 
-@keyframes rocket-liftoff {
-  0% { transform: translate(0, 0); opacity: 1; }
-  100% { transform: translate(200vw, -200vh); opacity: 0; }
+.animate-rocket-shake {
+  animation: rocket-shake 0.15s ease-in-out infinite;
 }
 
 @keyframes energy-particle {
@@ -84,26 +114,6 @@ body {
   100% { left: 100%; opacity: 0; }
 }
 
-.animate-rocket-shake {
-  animation: rocket-shake 0.15s ease-in-out infinite;
-}
-
-.animate-rocket-liftoff {
-  animation: rocket-liftoff 0.7s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
 .animate-energy-particle {
-  animation: energy-particle 2s linear infinite;
-}
-
-/* Cinematic 3D Liftoff */
-@keyframes epic-3d-liftoff {
-  0% { transform: translate(0, 0) rotate(45deg) scale(1); opacity: 1; }
-  30% { transform: translate(40vw, -40vh) rotate(45deg) scale(0.3); opacity: 0.8; }
-  60% { transform: translate(0vw, -60vh) rotate(-45deg) scale(0.5); opacity: 0.9; }
-  100% { transform: translate(0, 0) rotate(0deg) scale(20); opacity: 0; }
-}
-
-.animate-epic-liftoff {
-  animation: epic-3d-liftoff 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: energy-particle 1.5s linear infinite;
 }
