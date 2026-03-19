@@ -4,18 +4,45 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { Clock, CheckCircle2, PlayCircle, Plus, Image as ImageIcon, Circle, Trash2, UserPlus, X } from 'lucide-react';
 import { useTaskStore } from '@/store/useTaskStore';
 
-/* ── Rocket Launchpad Sub-component ── */
+/* ── Rocket Assets & Sub-components ── */
+const ColdRocket = () => (
+    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="relative z-10">
+        <path d="M12 2C12 2 7 6 7 12C7 16 9 18 12 18C15 18 17 16 17 12C17 6 12 2 12 2Z" fill="#CBD5E1"/>
+        <path d="M7 12L3 17V19L7 18V12Z" fill="#94A3B8"/>
+        <path d="M17 12L21 17V19L17 18V12Z" fill="#94A3B8"/>
+        <circle cx="12" cy="10" r="2" fill="#1E293B"/>
+        {/* Nozzle detail */}
+        <path d="M10 18H14V19H10V18Z" fill="#64748B"/>
+    </svg>
+);
+
+const RocketFlame = ({ percentage, launchStatus }: { percentage: number; launchStatus: string }) => {
+    const isLaunching = launchStatus === 'shaking' || launchStatus === 'liftoff';
+    
+    return (
+        <div 
+            className="absolute left-1/2 -translate-x-1/2 rounded-full transition-all duration-300 pointer-events-none"
+            style={{ 
+                bottom: '-12px',
+                width: '16px',
+                height: `${8 + percentage / 6.25}px`,
+                opacity: 0.3 + percentage / 142,
+                boxShadow: isLaunching
+                    ? '0 0 30px 10px rgba(249, 115, 22, 1), 0 0 100px 30px rgba(249, 115, 22, 0.8)'
+                    : `0 0 ${10 + percentage / 3.33}px ${2 + percentage / 12.5}px rgba(16, 185, 129, ${0.4 + percentage / 166})`,
+                backgroundColor: isLaunching ? '#fb923c' : 'rgba(16, 185, 129, 0.4)',
+                zIndex: 0
+            }}
+        />
+    );
+};
+
 function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
     totalTasks: number;
     completedTasks: number;
     percentage: number;
 }) {
     const [launchStatus, setLaunchStatus] = useState<'idle' | 'shaking' | 'liftoff' | 'completed'>('idle');
-
-    // Dynamic Flame Calculations
-    const dynamicHeight = 8 + percentage / 6.25;
-    const dynamicOpacity = 0.3 + percentage / 142;
-    const dynamicGlow = `0 0 ${10 + percentage / 3.33}px ${2 + percentage / 12.5}px rgba(16, 185, 129, ${0.4 + percentage / 166})`;
 
     // Stable star positions (avoid re-randomising on every render)
     const stars = useMemo(() =>
@@ -123,24 +150,13 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
                         <div className="w-20 h-20 rounded-full bg-slate-950 flex items-center justify-center border border-slate-800 shadow-inner relative group">
                             
                             {/* theFlyingVehicleContainer - Only this wrapper flies */}
-                            <div className={`theFlyingVehicleContainer relative ${
+                            <div className={`theFlyingVehicleContainer relative flex items-center justify-center rotate-45 ${
                                 launchStatus === 'shaking' ? 'animate-rocket-shake' : 
                                 launchStatus === 'liftoff' ? '-translate-y-[200vh] translate-x-[200vw] animate-rocket-liftoff transition-all duration-700 ease-in' : 'translate-y-0 translate-x-0 transition-all duration-300'
                             }`}>
-                                {/* Fluorescent Green Breathing Flame (Pre-warming) */}
-                                <div
-                                    className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-10 rounded-full transition-all duration-300 bg-emerald-500/20"
-                                    style={{ 
-                                        height: `${8 + percentage / 6.25}px`,
-                                        opacity: 0.3 + percentage / 142,
-                                        boxShadow: (launchStatus === 'shaking' || launchStatus === 'liftoff')
-                                            ? '0 0 30px 10px rgba(249, 115, 22, 1), 0 0 100px 30px rgba(249, 115, 22, 0.8)'
-                                            : `0 0 ${10 + percentage / 3.33}px ${2 + percentage / 12.5}px rgba(16, 185, 129, ${0.4 + percentage / 166})`
-                                    }}
-                                />
-
-                                <div className="relative text-6xl select-none cursor-pointer hover:scale-110 transition-transform">
-                                    🚀
+                                <RocketFlame percentage={percentage} launchStatus={launchStatus} />
+                                <div className="relative select-none cursor-pointer hover:scale-110 transition-transform">
+                                    <ColdRocket />
                                 </div>
                             </div>
 
