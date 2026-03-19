@@ -157,20 +157,28 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
                 {/* 右侧：火箭载荷 */}
                 <div className="flex flex-col items-center">
                     <MissionStatus percentage={percentage} />
-                    <div className={`relative flex flex-col items-center ${launchStatus === 'liftoff' ? 'animate-cinematic-strike' : launchStatus === 'shaking' ? 'animate-rocket-shake rotate-[-45deg]' : 'rotate-[-45deg] transition-all duration-300'}`}>
-                        <ColdRocket className="w-16 h-16 drop-shadow-[0_15px_20px_rgba(0,0,0,0.8)] z-10" />
-                        
-                        {/* 🚀 传统火焰：橙黄渐变 + 动态闪烁 */}
-                        <div 
-                            className={`absolute left-1/2 -translate-x-1/2 -bottom-[2px] rounded-full z-0 origin-top ${launchStatus === 'liftoff' ? 'animate-flame-flicker scale-150' : 'animate-breath'}`} 
-                            style={{ 
-                                width: '14px', 
-                                background: 'linear-gradient(to bottom, #ffcc00, #ff9500, #ff4d00)', 
-                                height: `${8 + (percentage / 100) * 35}px`, 
-                                opacity: 0.6 + (percentage / 100) * 0.4, 
-                                boxShadow: `0 0 ${15 + (percentage / 100) * 35}px rgba(251, 146, 60, 0.8), 0 0 40px rgba(239, 68, 68, 0.3)` 
-                            }} 
-                        />
+                    
+                    {/* Outer Wrapper: Translation Only (Animation) */}
+                    <div className={`relative z-20 ${
+                        launchStatus === 'liftoff' ? 'animate-cinematic-strike' : 
+                        launchStatus === 'shaking' ? 'animate-rocket-shake' : ''
+                    }`}>
+                        {/* Inner Wrapper: Posture Lock (Rotation Only) - Points Left */}
+                        <div className="relative flex flex-col items-center rotate-[-90deg]">
+                            <ColdRocket className="w-16 h-16 drop-shadow-[0_15px_20px_rgba(0,0,0,0.8)] z-10" />
+                            
+                            {/* 🚀 传统火焰：橙黄渐变 + 动态闪烁 - Now anchored inside rotation context */}
+                            <div 
+                                className={`absolute left-1/2 -translate-x-1/2 -bottom-[2px] rounded-full z-0 origin-top ${launchStatus === 'liftoff' ? 'animate-flame-flicker scale-150' : 'animate-breath'}`} 
+                                style={{ 
+                                    width: '14px', 
+                                    background: 'linear-gradient(to bottom, #ffcc00, #ff9500, #ff4d00)', 
+                                    height: `${8 + (percentage / 100) * 35}px`, 
+                                    opacity: 0.6 + (percentage / 100) * 0.4, 
+                                    boxShadow: `0 0 ${15 + (percentage / 100) * 35}px rgba(251, 146, 60, 0.8), 0 0 40px rgba(239, 68, 68, 0.3)` 
+                                }} 
+                            />
+                        </div>
                     </div>
                 </div>
             </div>

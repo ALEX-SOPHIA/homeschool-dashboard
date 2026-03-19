@@ -111,53 +111,20 @@ body {
   animation: flame-flicker 0.1s infinite alternate;
 }
 
-/* @keyframes cinematic-reentry-strike {
-  0% { transform: translate(0, 0) rotate(-45deg) scale(1); opacity: 1; }
-  30% { transform: translate(-30vw, -30vh) rotate(-45deg) scale(0.4); opacity: 0.8; }
-  60% { transform: translate(10vw, -55vh) rotate(50deg) scale(0.6); opacity: 0.9; }
-  85% { transform: translate(0, 0) rotate(10deg) scale(2.5); opacity: 0.95; }
-  100% { transform: translate(0, 0) rotate(0deg) scale(20); opacity: 0; }
-}
-
-.animate-cinematic-strike {
-  animation: cinematic-reentry-strike 1.8s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-} */
-
-/* 🚀 修正版：深空远征轨迹 (Deep Space Trajectory) */
+/* 🚀 波浪式水平投送：横穿屏幕并吸收 (Wavy Horizontal Delivery) */
 @keyframes cinematic-strike-reentry {
-  0% {
-    /* 发射台初始位置 */
-    transform: translate(0, 0) rotate(-45deg) scale(1);
-    opacity: 1;
-    filter: blur(0px);
-  }
-
-  40% {
-    /* 突破大气层：稳步向左上方爬升，体积开始缩减，模拟远离 */
-    transform: translate(-20vw, -30vh) rotate(-45deg) scale(0.5);
-    opacity: 0.9;
-    filter: blur(0.5px);
-  }
-
-  80% {
-    /* 进入深空：加速飞离，体积大幅缩小，产生距离感 */
-    transform: translate(-45vw, -65vh) rotate(-45deg) scale(0.15);
-    opacity: 0.5;
-    filter: blur(1px);
-  }
-
-  100% {
-    /* 化为星辰：彻底消失在宇宙深处 */
-    transform: translate(-65vw, -95vh) rotate(-45deg) scale(0);
-    opacity: 0;
-    filter: blur(2px);
-  }
+  0% { transform: translateX(0) translateY(0) scale(1); opacity: 1; }
+  15% { transform: translateX(2vw) translateY(1vh) scale(1.05); opacity: 1; } /* Recoil */
+  40% { transform: translateX(-20vw) translateY(-12vh) scale(0.9); opacity: 0.95; } /* Curve UP */
+  70% { transform: translateX(-45vw) translateY(8vh) scale(0.7); opacity: 0.9; } /* Curve DOWN */
+  100% { transform: translateX(-65vw) translateY(0) scale(0.2); opacity: 0; } /* Final Absorption */
 }
 
 .animate-cinematic-strike {
-  /* 使用 ease-out 曲线模拟初始爆发后在真空中的平滑滑行，2.5s 完美匹配底层音效锁 */
-  animation: cinematic-strike-reentry 5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  animation: cinematic-strike-reentry 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
+
+
 
 @keyframes breath {
   0% {
