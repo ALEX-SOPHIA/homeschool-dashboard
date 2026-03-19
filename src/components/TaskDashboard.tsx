@@ -136,9 +136,13 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
                 {/* 左侧：Energy Bank */}
                 <div className="flex flex-col gap-2 shrink-0">
                     <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Energy Bank</h3>
-                    <div className="flex flex-wrap gap-1 max-w-[180px]">
+                    <div className="flex flex-wrap gap-1.5 max-w-[200px]">
                         {[...Array(totalTasks)].map((_, i) => (
-                            <div key={i} className={`w-2.5 h-4 rounded-[3px] transition-all duration-500 ${i < completedTasks ? 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.6)]' : 'bg-slate-800 opacity-40'}`} />
+                            <div key={i} className={`w-2.5 h-4 rounded-[3px] transition-all duration-500 border ${
+                                i < completedTasks 
+                                ? 'bg-orange-500 border-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.8)]' 
+                                : 'bg-slate-600/30 border-slate-500/20'
+                            }`} />
                         ))}
                     </div>
                 </div>
