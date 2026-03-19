@@ -95,3 +95,15 @@ body {
 .animate-energy-particle {
   animation: energy-particle 2s linear infinite;
 }
+
+/* Cinematic 3D Liftoff */
+@keyframes epic-3d-liftoff {
+  0% { transform: translate(0, 0) rotate(45deg) scale(1); opacity: 1; }
+  30% { transform: translate(40vw, -40vh) rotate(45deg) scale(0.3); opacity: 0.8; }
+  60% { transform: translate(0vw, -60vh) rotate(-45deg) scale(0.5); opacity: 0.9; }
+  100% { transform: translate(0, 0) rotate(0deg) scale(20); opacity: 0; }
+}
+
+.animate-epic-liftoff {
+  animation: epic-3d-liftoff 1.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}

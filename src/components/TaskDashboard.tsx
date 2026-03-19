@@ -47,18 +47,29 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
     // Multi-stage launch timer - Strict 4-Phase State Machine
     useEffect(() => {
         if (percentage === 100 && totalTasks > 0) {
-            if (launchStatus === 'idle') {
-                setLaunchStatus('shaking');
-                const timer1 = setTimeout(() => setLaunchStatus('liftoff'), 1000);
-                const timer2 = setTimeout(() => setLaunchStatus('completed'), 1500);
-                return () => { clearTimeout(timer1); clearTimeout(timer2); };
-            }
+            // Use a functional update or a check to ensure we only start once
+            setLaunchStatus(prev => {
+                if (prev === 'idle') {
+                    const timer1 = setTimeout(() => setLaunchStatus('liftoff'), 1000);
+                    const timer2 = setTimeout(() => setLaunchStatus('completed'), 2500);
+                    // Store timers in a ref if we need to clear them later across renders
+                    return 'shaking';
+                }
+                return prev;
+            });
         } else {
             setLaunchStatus('idle');
         }
-        // Removed launchStatus from dependencies to prevent state transitions 
-        // from triggering cleanup and clearing the timers.
     }, [percentage, totalTasks]);
+
+    // Audio Feedback Integration
+    useEffect(() => {
+        if (launchStatus === 'shaking') {
+            new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_c6ccf3232f.mp3?filename=rocket-rumble.mp3').play().catch(e => console.log('Audio rumble failed:', e));
+        } else if (launchStatus === 'liftoff') {
+            new Audio('https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8a73467.mp3?filename=whoosh-flyby.mp3').play().catch(e => console.log('Audio whoosh failed:', e));
+        }
+    }, [launchStatus]);
 
     const isMissionComplete = launchStatus === 'completed';
 
@@ -141,9 +152,9 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
                         <div className="w-20 h-20 rounded-full bg-slate-950 flex items-center justify-center border border-slate-800 shadow-inner relative group">
                             
                             {/* theFlyingVehicleContainer - Only this wrapper flies */}
-                            <div className={`theFlyingVehicleContainer relative flex items-center justify-center rotate-45 ${
-                                launchStatus === 'shaking' ? 'animate-rocket-shake' : 
-                                launchStatus === 'liftoff' ? '-translate-y-[200vh] translate-x-[200vw] animate-rocket-liftoff transition-all duration-700 ease-in' : 'translate-y-0 translate-x-0 transition-all duration-300'
+                            <div className={`theFlyingVehicleContainer relative flex items-center justify-center ${
+                                launchStatus === 'liftoff' ? 'animate-epic-liftoff' : 
+                                launchStatus === 'shaking' ? 'animate-rocket-shake rotate-45' : 'rotate-45 transition-all duration-300'
                             }`}>
                                 <RocketFlame percentage={percentage} launchStatus={launchStatus} />
                                 <div className="relative select-none cursor-pointer hover:scale-110 transition-transform">
