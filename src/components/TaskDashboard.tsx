@@ -11,7 +11,7 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage, flameGlow }: 
     percentage: number;
     flameGlow: string;
 }) {
-    const [launchSequence, setLaunchSequence] = useState<'idle' | 'shaking' | 'whoosh' | 'celebration'>('idle');
+    const [launchStatus, setLaunchStatus] = useState<'idle' | 'shaking' | 'liftoff' | 'completed'>('idle');
 
     // Stable star positions (avoid re-randomising on every render)
     const stars = useMemo(() =>
@@ -22,20 +22,23 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage, flameGlow }: 
             delay: `${Math.random() * 4}s`,
         })), []);
 
-    // Multi-stage launch timer
+    // Multi-stage launch timer - Strict 4-Phase State Machine
     useEffect(() => {
-        if (percentage === 100 && totalTasks > 0 && launchSequence === 'idle') {
-            setLaunchSequence('shaking');
-            const whooshTimer = setTimeout(() => setLaunchSequence('whoosh'), 1000);
-            const celebTimer = setTimeout(() => setLaunchSequence('celebration'), 1500);
-            return () => { clearTimeout(whooshTimer); clearTimeout(celebTimer); };
+        if (percentage === 100 && totalTasks > 0) {
+            if (launchStatus === 'idle') {
+                setLaunchStatus('shaking');
+                const timer1 = setTimeout(() => setLaunchStatus('liftoff'), 1000);
+                const timer2 = setTimeout(() => setLaunchStatus('completed'), 1500);
+                return () => { clearTimeout(timer1); clearTimeout(timer2); };
+            }
+        } else {
+            setLaunchStatus('idle');
         }
-        if (percentage < 100 && launchSequence !== 'idle') {
-            setLaunchSequence('idle');
-        }
-    }, [percentage, totalTasks, launchSequence]);
+        // Removed launchStatus from dependencies to prevent state transitions 
+        // from triggering cleanup and clearing the timers.
+    }, [percentage, totalTasks]);
 
-    const isCelebrating = launchSequence === 'celebration';
+    const isMissionComplete = launchStatus === 'completed';
 
     return (
         <div className="bg-[#0f172a] p-6 rounded-3xl shadow-2xl mb-8 relative overflow-hidden min-h-[160px] border border-slate-800">
@@ -50,7 +53,7 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage, flameGlow }: 
                 ))}
             </div>
 
-            {isCelebrating ? (
+            {isMissionComplete ? (
                 <div className="flex flex-col items-center justify-center relative z-10 py-4 animate-in fade-in zoom-in duration-700">
                     <div className="text-6xl mb-4 animate-bounce">🌕</div>
                     <h3 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-indigo-400 tracking-tighter uppercase italic">
@@ -112,11 +115,18 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage, flameGlow }: 
                             <span className="text-[9px] font-black text-slate-500 uppercase">Fuel</span>
                         </div>
 
-                        <div className={`relative ${launchSequence === 'shaking' ? 'animate-rocket-shake' : ''} ${launchSequence === 'whoosh' ? 'animate-rocket-liftoff' : ''}`}>
+                        <div className={`relative ${
+                            launchStatus === 'shaking' ? 'animate-rocket-shake' : 
+                            launchStatus === 'liftoff' ? 'animate-rocket-liftoff' : ''
+                        }`}>
                             {/* Flame Glow */}
                             <div
                                 className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full transition-all duration-500"
-                                style={{ boxShadow: flameGlow }}
+                                style={{ 
+                                    boxShadow: (launchStatus === 'shaking' || launchStatus === 'liftoff')
+                                        ? '0 0 30px 10px rgba(249, 115, 22, 1), 0 0 100px 30px rgba(249, 115, 22, 0.8)'
+                                        : flameGlow 
+                                }}
                             />
 
                             <div className="relative text-6xl select-none cursor-pointer hover:scale-110 transition-transform">
