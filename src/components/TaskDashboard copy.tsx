@@ -1,201 +1,169 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { Clock, CheckCircle2, PlayCircle, Plus, Image as ImageIcon, Circle, Trash2, UserPlus, X } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { CheckCircle2, PlayCircle, Plus, Image as ImageIcon, Circle, Trash2, UserPlus, X } from 'lucide-react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { ColdRocket } from './ColdRocket';
 
-/* ── Rocket Assets & Sub-components ── */
+/* ── 子组件：任务状态与燃料槽 ── */
+const MissionStatus = ({ percentage }: { percentage: number }) => (
+    <div className="flex flex-col items-center gap-1 mb-3">
+        <div className="text-xl font-black text-white tracking-tighter italic leading-none">
+            {Math.round(percentage)}% <span className="text-[9px] text-slate-500 not-italic ml-1 uppercase tracking-widest">Fuel Loaded</span>
+        </div>
+        <div className="w-20 h-1 bg-slate-900 rounded-full overflow-hidden border border-slate-800 mt-1">
+            <div
+                className="h-full bg-emerald-500 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(16,185,129,0.6)]"
+                style={{ width: `${percentage}%` }}
+            />
+        </div>
+    </div>
+);
 
-const RocketFlame = ({ percentage, launchStatus }: { percentage: number; launchStatus: string }) => {
-    const isLaunching = launchStatus === 'shaking' || launchStatus === 'liftoff';
-    
-    return (
-        <div 
-            className="absolute left-1/2 -translate-x-1/2 rounded-full transition-all duration-300 pointer-events-none"
-            style={{ 
-                bottom: '-2px',
-                width: '16px',
-                height: `${8 + percentage / 6.25}px`,
-                opacity: 0.3 + percentage / 142,
-                boxShadow: isLaunching
-                    ? '0 0 30px 10px rgba(249, 115, 22, 1), 0 0 100px 30px rgba(249, 115, 22, 0.8)'
-                    : `0 0 ${10 + percentage / 3.33}px ${2 + percentage / 12.5}px rgba(16, 185, 129, ${0.4 + percentage / 166})`,
-                backgroundColor: isLaunching ? '#fb923c' : 'rgba(16, 185, 129, 0.4)',
-                zIndex: 0
-            }}
-        />
-    );
-};
-
+/* ── 子组件：电影级火箭发射台 ── */
 function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
-    totalTasks: number;
-    completedTasks: number;
-    percentage: number;
+    totalTasks: number; completedTasks: number; percentage: number;
 }) {
     const [launchStatus, setLaunchStatus] = useState<'idle' | 'shaking' | 'liftoff' | 'completed'>('idle');
 
-    // Stable star positions (avoid re-randomising on every render)
-    const stars = useMemo(() =>
-        [...Array(25)].map(() => ({
-            top: `${Math.random() * 100}%`,
-            left: `${Math.random() * 100}%`,
-            size: `${1 + Math.random() * 2}px`,
-            delay: `${Math.random() * 4}s`,
-        })), []);
+    // 🛡️ 引用音频对象，处理长音效淡出与防止重复播放
+    const igniteAudioRef = useRef<HTMLAudioElement | null>(null);
+    const audioPlayed = useRef({ shake: false, cheer: false });
 
-    // Multi-stage launch timer - Strict 4-Phase State Machine
+    // 🛑 核心修复：单向状态驱动，彻底消除 useEffect 闭包陷阱
     useEffect(() => {
         if (percentage === 100 && totalTasks > 0) {
-            // Use a functional update or a check to ensure we only start once
-            setLaunchStatus(prev => {
-                if (prev === 'idle') {
-                    const timer1 = setTimeout(() => setLaunchStatus('liftoff'), 1000);
-                    const timer2 = setTimeout(() => setLaunchStatus('completed'), 2500);
-                    // Store timers in a ref if we need to clear them later across renders
-                    return 'shaking';
+            setLaunchStatus('shaking');
+
+            // 1. 点火
+            if (!audioPlayed.current.shake) {
+                const audio = new Audio('/sounds/ignite.wav');
+                audio.volume = 0.6;
+                igniteAudioRef.current = audio;
+                audio.play().catch(e => console.warn("Audio play failed:", e));
+                audioPlayed.current.shake = true;
+            }
+
+            const timer1 = setTimeout(() => {
+                setLaunchStatus('liftoff');
+
+                // 🔊 安全的音量淡出逻辑 (防止浮点数越界导致浏览器报错)
+                if (igniteAudioRef.current) {
+                    const fadeOut = setInterval(() => {
+                        if (igniteAudioRef.current) {
+                            const newVolume = igniteAudioRef.current.volume - 0.05;
+                            if (newVolume > 0) {
+                                igniteAudioRef.current.volume = newVolume;
+                            } else {
+                                igniteAudioRef.current.volume = 0;
+                                igniteAudioRef.current.pause();
+                                clearInterval(fadeOut);
+                            }
+                        } else {
+                            clearInterval(fadeOut);
+                        }
+                    }, 150);
                 }
-                return prev;
-            });
+            }, 1000);
+
+            const timer2 = setTimeout(() => {
+                setLaunchStatus('completed');
+
+                // 彻底关闭点火音，播放喝彩
+                if (igniteAudioRef.current) {
+                    igniteAudioRef.current.pause();
+                    igniteAudioRef.current = null;
+                }
+                if (!audioPlayed.current.cheer) {
+                    const cheerAudio = new Audio('/sounds/cheer.wav');
+                    cheerAudio.volume = 0.8;
+                    cheerAudio.play().catch(e => console.warn("Audio play failed:", e));
+                    audioPlayed.current.cheer = true;
+                }
+            }, 3500);
+
+            return () => {
+                clearTimeout(timer1);
+                clearTimeout(timer2);
+            };
         } else {
+            // 当数据回滚 (<100%) 时，强制重置所有状态和音频锁
             setLaunchStatus('idle');
+            audioPlayed.current = { shake: false, cheer: false };
+            if (igniteAudioRef.current) {
+                igniteAudioRef.current.pause();
+                igniteAudioRef.current = null;
+            }
         }
-    }, [percentage, totalTasks]);
+    }, [percentage, totalTasks]); // 🎯 依赖项绝对干净，没有 launchStatus
 
-    // Audio Feedback Integration
-    useEffect(() => {
-        if (launchStatus === 'shaking') {
-            new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_c6ccf3232f.mp3?filename=rocket-rumble.mp3').play().catch(e => console.log('Audio rumble failed:', e));
-        } else if (launchStatus === 'liftoff') {
-            new Audio('https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8a73467.mp3?filename=whoosh-flyby.mp3').play().catch(e => console.log('Audio whoosh failed:', e));
-        }
-    }, [launchStatus]);
-
-    const isMissionComplete = launchStatus === 'completed';
+    if (launchStatus === 'completed') {
+        return (
+            <div className="bg-[#0f172a] p-6 rounded-3xl shadow-2xl mb-6 flex flex-col items-center justify-center min-h-[220px] border border-slate-800 animate-in fade-in zoom-in duration-700 relative overflow-hidden">
+                <div className="text-5xl mb-3 animate-bounce">🌕</div>
+                <h3 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 italic">MISSION COMPLETE</h3>
+                <div className="absolute inset-0 bg-emerald-500/5 animate-pulse pointer-events-none" />
+            </div>
+        );
+    }
 
     return (
-        <div className="bg-[#0f172a] p-6 rounded-3xl shadow-2xl mb-8 relative overflow-hidden min-h-[160px] border border-slate-800">
-            {/* Stars */}
-            <div className="absolute inset-0 pointer-events-none">
-                {stars.map((s, i) => (
-                    <div
-                        key={i}
-                        className="absolute bg-white rounded-full animate-pulse opacity-30"
-                        style={{ top: s.top, left: s.left, width: s.size, height: s.size, animationDelay: s.delay }}
-                    />
-                ))}
-            </div>
+        <div className="bg-[#0f172a] p-5 rounded-3xl shadow-2xl mb-6 relative overflow-hidden min-h-[220px] border border-slate-800 flex items-center justify-center">
+            {/* Layer 1: 地球切片背景 */}
+            <div className="absolute -bottom-[20%] -right-[5%] w-[350px] h-[350px] bg-[url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?q=80&w=600')] bg-cover opacity-15 grayscale-[20%] mix-blend-screen pointer-events-none z-0"
+                style={{ borderRadius: '50%', maskImage: 'radial-gradient(circle at 40% 40%, black 20%, transparent 60%)', WebkitMaskImage: 'radial-gradient(circle at 40% 40%, black 20%, transparent 60%)' }}
+            />
 
-            {isMissionComplete ? (
-                <div className="flex flex-col items-center justify-center relative z-10 py-4 animate-in fade-in zoom-in duration-700">
-                    <div className="text-6xl mb-4 animate-bounce">🌕</div>
-                    <h3 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-indigo-400 tracking-tighter uppercase italic">
-                        LIFTOFF! 🚀✨
-                    </h3>
-                    <p className="text-slate-400 font-bold text-lg mt-2 tracking-wide uppercase">
-                        Mission accomplished! Everything is finished!
-                    </p>
-                </div>
-            ) : (
-                <div className="max-w-4xl mx-auto flex items-center justify-center gap-6 relative z-10">
-                    {/* Left: Energy Bank */}
-                    <div className="flex flex-col gap-3 shrink-0">
-                        <div className="flex items-center gap-2 mb-1">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Energy Bank</h3>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5 max-w-[220px]">
-                            {[...Array(totalTasks)].map((_, i) => (
-                                <div
-                                    key={i}
-                                    className={`w-3 h-5 rounded-[4px] transition-all duration-500 ${
-                                        i < completedTasks
-                                            ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]'
-                                            : 'bg-slate-800 border border-slate-700 opacity-60'
-                                    }`}
-                                />
-                            ))}
-                            {totalTasks === 0 && (
-                                <div className="text-slate-600 text-[10px] italic">Awaiting missions...</div>
-                            )}
-                        </div>
-                        <div className="mt-1">
-                            <span className="text-emerald-400 font-black text-xs tabular-nums">{completedTasks}/{totalTasks}</span>
-                            <span className="text-slate-500 font-bold text-[10px] ml-2 uppercase">Core charged</span>
-                        </div>
-                    </div>
-
-                    {/* Center: Energy Conduit */}
-                    <div className="flex-1 min-w-[60px] max-w-[160px] relative h-[2px] border-t-2 border-dashed border-emerald-700/40 self-center">
-                        {completedTasks > 0 && [...Array(3)].map((_, i) => (
-                            <span
-                                key={i}
-                                className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-energy-particle"
-                                style={{ animationDelay: `${i * 0.6}s` }}
-                            />
+            <div className="max-w-4xl mx-auto flex items-center justify-between gap-10 relative z-10 w-full">
+                {/* 左侧：Energy Bank */}
+                <div className="flex flex-col gap-2 shrink-0">
+                    <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Energy Bank</h3>
+                    <div className="flex flex-wrap gap-1 max-w-[180px]">
+                        {[...Array(totalTasks)].map((_, i) => (
+                            <div key={i} className={`w-2.5 h-4 rounded-[3px] transition-all duration-500 ${i < completedTasks ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-slate-800 opacity-40'}`} />
                         ))}
                     </div>
+                </div>
 
-                    {/* Right: Rocket & Fuel */}
-                    <div className="flex items-center gap-6 shrink-0">
-                        <div className="flex flex-col items-center">
-                            <div className="h-28 w-4 bg-slate-900 rounded-full border border-slate-800 p-[2px] mb-3 overflow-hidden flex flex-col justify-end">
-                                <div
-                                    className="w-full bg-gradient-to-t from-emerald-600 to-emerald-400 transition-all duration-1000 ease-out rounded-full shadow-[0_0_10px_rgba(16,185,129,0.4)]"
-                                    style={{ height: `${percentage}%` }}
-                                />
-                            </div>
-                            <span className="text-[9px] font-black text-slate-500 uppercase">Fuel</span>
-                        </div>
+                {/* 中间：能量脉冲导管 */}
+                <div className="flex-1 min-w-[40px] max-w-[100px] relative h-[1px] border-t border-dashed border-emerald-700/30 self-center mt-6">
+                    {completedTasks > 0 && [...Array(3)].map((_, i) => (
+                        <span key={i} className="absolute top-[-1px] w-1 h-1 rounded-full bg-emerald-400 animate-energy-particle" style={{ animationDelay: `${i * 0.5}s` }} />
+                    ))}
+                </div>
 
-                        {/* Stationary Launch Dock (Gantry) */}
-                        <div className="w-20 h-20 rounded-full bg-slate-950 flex items-center justify-center border border-slate-800 shadow-inner relative group">
-                            
-                            {/* theFlyingVehicleContainer - Only this wrapper flies */}
-                            <div className={`theFlyingVehicleContainer relative flex items-center justify-center ${
-                                launchStatus === 'liftoff' ? 'animate-epic-liftoff' : 
-                                launchStatus === 'shaking' ? 'animate-rocket-shake rotate-45' : 'rotate-45 transition-all duration-300'
-                            }`}>
-                                <RocketFlame percentage={percentage} launchStatus={launchStatus} />
-                                <div className="relative select-none cursor-pointer hover:scale-110 transition-transform">
-                                    <ColdRocket className="w-16 h-16 drop-shadow-xl" />
-                                </div>
-                            </div>
-
-                            {/* Percentage Label - stays with the gantry */}
-                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-lg whitespace-nowrap z-10">
-                                <span className="text-[10px] font-black text-white">{Math.round(percentage)}%</span>
-                            </div>
-                        </div>
+                {/* 右侧：火箭载荷 */}
+                <div className="flex flex-col items-center">
+                    <MissionStatus percentage={percentage} />
+                    <div className={`relative flex flex-col items-center ${launchStatus === 'liftoff' ? 'animate-cinematic-strike' : launchStatus === 'shaking' ? 'animate-rocket-shake rotate-[-45deg]' : 'rotate-[-45deg] transition-all duration-300'}`}>
+                        <ColdRocket className="w-16 h-16 drop-shadow-[0_15px_20px_rgba(0,0,0,0.8)] z-10" />
+                        <div className="animate-flame-breath rounded-full -mt-2 z-0" style={{ width: '14px', background: 'rgba(16, 185, 129, 0.95)', height: `${8 + (percentage / 100) * 30}px`, opacity: 0.2 + (percentage / 100) * 0.8, boxShadow: `0 0 ${15 + (percentage / 100) * 30}px rgba(16, 185, 129, 0.6)` }} />
                     </div>
                 </div>
-            )}
+            </div>
         </div>
     );
 }
 
-interface TaskDashboardProps {
-    onStartTasks: (tasks: { id: string, title: string, subject: string, targetDuration: string }[]) => void;
-}
-
-export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
+/* ── 主组件：TaskDashboard ── */
+export default function TaskDashboard({ onStartTasks }: { onStartTasks: (tasks: any[]) => void }) {
     const { groups, addTask, removeTask, updateTask, updateGroup, addGroup, removeGroup, undoTask } = useTaskStore();
-    
-    // Map: taskId → { title, subject, targetDuration }
-    const [selected, setSelected] = useState<Map<string, { title: string; subject: string; targetDuration: string }>>(new Map());
-
-    // Hydration fix for persistent state
+    const [selected, setSelected] = useState<Map<string, any>>(new Map());
     const [isHydrated, setIsHydrated] = useState(false);
-    useEffect(() => {
-        setIsHydrated(true);
-    }, []);
-
-    // State for tracking which cell is being edited
     const [editing, setEditing] = useState<{ id: string; field: 'title' | 'targetDuration' } | null>(null);
     const [groupEditing, setGroupEditing] = useState<number | null>(null);
-
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploadingGroupIdx, setUploadingGroupIdx] = useState<number | null>(null);
+
+    // 解决 Next.js  hydration 错误
+    useEffect(() => { setIsHydrated(true); }, []);
+
+    if (!isHydrated) return null;
+
+    // 统计全局任务进度
+    const totalTasks = groups.reduce((acc, g) => acc + g.tasks.length, 0);
+    const completedTasks = groups.reduce((acc, g) => acc + g.tasks.filter(t => t.status === 'completed').length, 0);
+    const percentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
     const handleAvatarClick = (idx: number) => {
         setUploadingGroupIdx(idx);
@@ -224,7 +192,7 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
     };
 
     const startSelected = () => {
-        const tasks = Array.from(selected.entries()).map(([id, { title, subject, targetDuration }]) => ({ id, title, subject, targetDuration }));
+        const tasks = Array.from(selected.entries()).map(([id, val]) => ({ id, ...val }));
         onStartTasks(tasks);
         setSelected(new Map());
     };
@@ -235,294 +203,95 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
     };
 
     const completeSelected = () => {
-        const ids = Array.from(selected.keys());
-        ids.forEach(id => {
-            // we use the existing completeTask action from the store
-            useTaskStore.getState().completeTask(id);
-        });
+        Array.from(selected.keys()).forEach(id => useTaskStore.getState().completeTask(id));
         setSelected(new Map());
     };
 
-    if (!isHydrated) return null; // or a skeleton loader
-
     return (
         <div className="flex-1 bg-[#f7f8fa] flex flex-col overflow-hidden h-[calc(100vh-64px)] relative">
-            {/* Starfield Background Layer */}
-            <div 
-                className="absolute inset-0 opacity-[0.03] pointer-events-none"
-                style={{ 
-                    backgroundImage: 'url(https://www.transparenttextures.com/patterns/stardust.png)',
-                }}
-            />
-            <input 
-                type="file" 
-                ref={fileInputRef} 
-                className="hidden" 
-                accept="image/*" 
-                onChange={handleFileChange} 
-            />
-            
-            {/* Constrained top section */}
+            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
+
+            {/* 顶部火箭发射台 */}
             <div className="shrink-0 px-8 pt-8 pb-5">
-                {/* Header */}
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-800">Today&apos;s Dashboard</h2>
-                        <p className="text-sm text-slate-400 mt-0.5">Saturday, March 14 · {groups.length} children active</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-4 border-r border-slate-200 pr-5 mr-1 text-slate-400">
-                            <button className="hover:text-slate-600 transition-colors">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                            </button>
-                            <button className="hover:text-slate-600 transition-colors">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>
-                            </button>
-                            <button className="hover:text-slate-600 transition-colors">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1Z"></path></svg>
-                            </button>
-                        </div>
-                        <button className="p-2 border border-border rounded-xl bg-white hover:bg-slate-50 transition-colors shadow-sm">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500"><path d="m3 16 4 4 4-4" /><path d="M7 20V4" /><path d="m21 8-4-4-4 4" /><path d="M17 4v16" /></svg>
-                        </button>
+                        <p className="text-sm text-slate-400 mt-0.5">{groups.length} children active</p>
                     </div>
                 </div>
-
-                {/* Rocket Launchpad Gamification */}
-                {(() => {
-                    const totalTasks = groups.reduce((acc, g) => acc + g.tasks.length, 0);
-                    const completedTasks = groups.reduce((acc, g) => acc + g.tasks.filter(t => t.status === 'completed').length, 0);
-                    const percentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
-
-                    return (
-                        <RocketLaunchpad
-                            totalTasks={totalTasks}
-                            completedTasks={completedTasks}
-                            percentage={percentage}
-                        />
-                    );
-                })()}
+                <RocketLaunchpad totalTasks={totalTasks} completedTasks={completedTasks} percentage={percentage} />
             </div>
 
-            {/* Kanban board — responsive grid with wrapping */}
+            {/* 核心看板区域 */}
             <div className="flex-1 overflow-y-auto px-8 pb-8 scroll-smooth">
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6 items-start">
                     {groups.map((group, groupIdx) => {
                         const totalCourses = group.tasks.length;
                         const completedCourses = group.tasks.filter(t => t.status === 'completed').length;
                         const progressPercent = totalCourses > 0 ? (completedCourses / totalCourses) * 100 : 0;
-                        const allDone = completedCourses === totalCourses && totalCourses > 0;
 
                         return (
-                            <div
-                                key={groupIdx}
-                                className="w-[300px] shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden group/column"
-                            >
-                                {/* Gradient header */}
+                            <div key={groupIdx} className="w-[300px] shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden group/column">
                                 <div className={`relative bg-gradient-to-r ${group.color} p-4 text-white`}>
-                                    {/* Delete column button */}
-                                    <button 
-                                        onClick={() => removeGroup(groupIdx)}
-                                        className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/10 hover:bg-red-500/80 flex items-center justify-center opacity-0 group-hover/column:opacity-100 transition-all border border-white/20"
-                                    >
-                                        <X size={12} />
-                                    </button>
-
+                                    <button onClick={() => removeGroup(groupIdx)} className="absolute top-2 right-2 w-6 h-6 rounded-full bg-white/10 hover:bg-red-500/80 flex items-center justify-center opacity-0 group-hover/column:opacity-100 transition-all border border-white/20"><X size={12} /></button>
                                     <div className="flex items-center gap-3 mb-3">
-                                        <button 
-                                            onClick={() => handleAvatarClick(groupIdx)}
-                                            className="relative w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-sm font-bold border border-white/30 overflow-hidden group/avatar"
-                                        >
-                                            {group.avatar ? (
-                                                <img src={group.avatar} alt={group.title} className="w-full h-full object-cover" />
-                                            ) : (
-                                                group.title.charAt(0)
-                                            )}
-                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
-                                                <ImageIcon size={12} />
-                                            </div>
+                                        <button onClick={() => handleAvatarClick(groupIdx)} className="relative w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-sm font-bold border border-white/30 overflow-hidden group/avatar">
+                                            {group.avatar ? <img src={group.avatar} alt={group.title} className="w-full h-full object-cover" /> : group.title.charAt(0)}
+                                            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity"><ImageIcon size={12} /></div>
                                         </button>
-                                        
                                         <div className="flex-1 min-w-0">
                                             {groupEditing === groupIdx ? (
-                                                <input
-                                                    autoFocus
-                                                    className="w-full bg-white/20 border border-white/30 rounded px-1 outline-none text-base font-bold text-white placeholder:text-white/50"
-                                                    defaultValue={group.title}
-                                                    onBlur={(e) => {
-                                                        updateGroup(groupIdx, { title: e.target.value });
-                                                        setGroupEditing(null);
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter') {
-                                                            updateGroup(groupIdx, { title: e.currentTarget.value });
-                                                            setGroupEditing(null);
-                                                        }
-                                                        if (e.key === 'Escape') setGroupEditing(null);
-                                                    }}
-                                                />
+                                                <input autoFocus className="w-full bg-white/20 border border-white/30 rounded px-1 outline-none text-base font-bold text-white" defaultValue={group.title} onBlur={(e) => { updateGroup(groupIdx, { title: e.target.value }); setGroupEditing(null); }} onKeyDown={(e) => { if (e.key === 'Enter') { updateGroup(groupIdx, { title: e.currentTarget.value }); setGroupEditing(null); } if (e.key === 'Escape') setGroupEditing(null); }} />
                                             ) : (
-                                                <div 
-                                                    onClick={() => setGroupEditing(groupIdx)}
-                                                    className="font-bold text-base leading-tight truncate cursor-text hover:bg-white/10 rounded px-1 -ml-1 transition-colors"
-                                                >
-                                                    {group.title}
-                                                </div>
+                                                <div onClick={() => setGroupEditing(groupIdx)} className="font-bold text-base leading-tight truncate cursor-text hover:bg-white/10 rounded px-1 -ml-1 transition-colors">{group.title}</div>
                                             )}
                                             <div className="text-white/70 text-xs">{group.duration} scheduled</div>
                                         </div>
-                                        
                                         <div className="shrink-0 text-right">
                                             <div className="text-xl font-bold">{completedCourses}<span className="text-white/60 text-sm font-normal">/{totalCourses}</span></div>
                                             <div className="text-white/70 text-[10px] uppercase tracking-wide">Done</div>
                                         </div>
                                     </div>
-                                    
                                     <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
-                                        <div
-                                            className="h-full bg-white rounded-full transition-all duration-700 ease-out"
-                                            style={{ width: `${progressPercent}%` }}
-                                        />
+                                        <div className="h-full bg-white rounded-full transition-all duration-700 ease-out" style={{ width: `${progressPercent}%` }} />
                                     </div>
-                                    {allDone && <div className="text-white/90 text-[10px] font-semibold mt-1.5 text-right">✓ All done!</div>}
                                 </div>
 
-                                {/* Course list */}
                                 <div className="flex-1 overflow-y-auto p-3 space-y-2">
                                     {group.tasks.map((task) => {
                                         const isSelected = selected.has(task.id);
                                         const canSelect = task.status !== 'completed';
 
                                         return (
-                                            <div
-                                                key={task.id}
-                                                className={`group relative rounded-xl px-3.5 py-3 border transition-all cursor-default ${
-                                                    isSelected
-                                                        ? 'bg-blue-50 border-blue-300 shadow-sm shadow-blue-100'
-                                                        : task.status === 'in_progress'
-                                                        ? 'bg-amber-50 border-amber-200'
-                                                        : task.status === 'completed'
-                                                        ? 'bg-slate-50 border-slate-100 opacity-60'
-                                                        : 'bg-white border-slate-100 hover:border-slate-200'
-                                                }`}
-                                            >
-                                                {/* Delete icon - appears on hover */}
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        removeTask(groupIdx, task.id);
-                                                    }}
-                                                    className="absolute -right-2 -top-2 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-200 opacity-0 group-hover:opacity-100 transition-all shadow-sm z-10"
-                                                >
-                                                    <Trash2 size={12} />
-                                                </button>
-
+                                            <div key={task.id} className={`group relative rounded-xl px-3.5 py-3 border transition-all ${isSelected ? 'bg-blue-50 border-blue-300 shadow-sm shadow-blue-100' : task.status === 'in_progress' ? 'bg-amber-50 border-amber-200' : task.status === 'completed' ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-100 hover:border-slate-200'}`}>
+                                                <button onClick={(e) => { e.stopPropagation(); removeTask(groupIdx, task.id); }} className="absolute -right-2 -top-2 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shadow-sm z-10"><Trash2 size={12} /></button>
                                                 <div className="flex items-center gap-3">
-                                                    {/* Checkbox / Status icon — clicking toggles selection */}
-                                                    <button
-                                                        disabled={!canSelect && task.status !== 'completed'}
-                                                        onClick={(e) => {
-                                                            if (task.status === 'completed') {
-                                                                e.stopPropagation();
-                                                                undoTask(task.id);
-                                                            } else if (canSelect) {
-                                                                toggle(task.id, task.title, group.title, task.targetDuration);
-                                                            }
-                                                        }}
-                                                        className={`shrink-0 ${task.status === 'completed' ? 'cursor-pointer hover:scale-110 active:scale-95 transition-transform hover:opacity-80' : 'disabled:cursor-default'}`}
-                                                        title={task.status === 'completed' ? 'Undo completion' : canSelect ? (isSelected ? 'Deselect' : 'Select to start with others') : ''}
-                                                    >
-                                                        {task.status === 'completed'
-                                                            ? <CheckCircle2 size={18} className="text-emerald-500" />
-                                                            : isSelected
-                                                            ? <div className="w-[18px] h-[18px] rounded-full bg-blue-500 flex items-center justify-center">
-                                                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                              </div>
-                                                            : task.status === 'in_progress'
-                                                            ? <div className="w-[18px] h-[18px] rounded-full bg-amber-400 border-2 border-amber-300 hover:ring-2 hover:ring-blue-300" />
-                                                            : <Circle size={18} className="text-slate-200 hover:text-blue-300 transition-colors" strokeWidth={2} />
-                                                        }
+                                                    <button disabled={!canSelect && task.status !== 'completed'} onClick={(e) => { if (task.status === 'completed') { e.stopPropagation(); undoTask(task.id); } else if (canSelect) { toggle(task.id, task.title, group.title, task.targetDuration); } }} className={`shrink-0 ${task.status === 'completed' ? 'cursor-pointer hover:scale-110 active:scale-95 transition-transform' : 'disabled:cursor-default'}`}>
+                                                        {task.status === 'completed' ? <CheckCircle2 size={18} className="text-emerald-500" /> : isSelected ? <div className="w-[18px] h-[18px] rounded-full bg-blue-500 flex items-center justify-center"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></div> : task.status === 'in_progress' ? <div className="w-[18px] h-[18px] rounded-full bg-amber-400 border-2 border-amber-300 hover:ring-2 hover:ring-blue-300" /> : <Circle size={18} className="text-slate-200 hover:text-blue-300 transition-colors" />}
                                                     </button>
-
-                                                    {/* Task name + actions */}
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex justify-between items-start">
                                                             <div className="flex-1 min-w-0">
                                                                 {editing?.id === task.id && editing?.field === 'title' ? (
-                                                                    <input
-                                                                        autoFocus
-                                                                        className="w-full text-sm font-semibold text-slate-700 bg-white border border-blue-300 rounded px-1 outline-none"
-                                                                        defaultValue={task.title}
-                                                                        onBlur={(e) => {
-                                                                            updateTask(groupIdx, task.id, { title: e.target.value });
-                                                                            setEditing(null);
-                                                                        }}
-                                                                        onKeyDown={(e) => {
-                                                                            if (e.key === 'Enter') {
-                                                                                updateTask(groupIdx, task.id, { title: e.currentTarget.value });
-                                                                                setEditing(null);
-                                                                            }
-                                                                            if (e.key === 'Escape') setEditing(null);
-                                                                        }}
-                                                                    />
+                                                                    <input autoFocus className="w-full text-sm font-semibold text-slate-700 bg-white border border-blue-300 rounded px-1 outline-none" defaultValue={task.title} onBlur={(e) => { updateTask(groupIdx, task.id, { title: e.target.value }); setEditing(null); }} onKeyDown={(e) => { if (e.key === 'Enter') { updateTask(groupIdx, task.id, { title: e.currentTarget.value }); setEditing(null); } if (e.key === 'Escape') setEditing(null); }} />
                                                                 ) : (
-                                                                    <div 
-                                                                        onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'title' })}
-                                                                        className={`text-sm font-semibold truncate cursor-text hover:text-blue-600 transition-colors ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'}`}
-                                                                    >
-                                                                        {task.title}
-                                                                    </div>
+                                                                    <div onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'title' })} className={`text-sm font-semibold truncate cursor-text hover:text-blue-600 transition-colors ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{task.title}</div>
                                                                 )}
                                                             </div>
-
-                                                            {/* Overdue pill */}
                                                             {task.isOverdue && task.status !== 'completed' && (
-                                                                <div className="shrink-0 ml-2 text-[8px] uppercase tracking-widest font-bold text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-md leading-none">
-                                                                    Late
-                                                                </div>
+                                                                <div className="shrink-0 ml-2 text-[8px] uppercase tracking-widest font-bold text-red-500 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-md leading-none">Late</div>
                                                             )}
                                                         </div>
-                                                        
                                                         <div className="flex items-center justify-between mt-1">
                                                             <div className="flex-1">
                                                                 {editing?.id === task.id && editing?.field === 'targetDuration' ? (
-                                                                    <input
-                                                                        autoFocus
-                                                                        className="w-20 text-[11px] font-medium text-slate-400 bg-white border border-blue-300 rounded px-1 outline-none"
-                                                                        defaultValue={task.targetDuration}
-                                                                        onBlur={(e) => {
-                                                                            updateTask(groupIdx, task.id, { targetDuration: e.target.value });
-                                                                            setEditing(null);
-                                                                        }}
-                                                                        onKeyDown={(e) => {
-                                                                            if (e.key === 'Enter') {
-                                                                                updateTask(groupIdx, task.id, { targetDuration: e.currentTarget.value });
-                                                                                setEditing(null);
-                                                                            }
-                                                                            if (e.key === 'Escape') setEditing(null);
-                                                                        }}
-                                                                    />
+                                                                    <input autoFocus className="w-20 text-[11px] font-medium text-slate-400 bg-white border border-blue-300 rounded px-1 outline-none" defaultValue={task.targetDuration} onBlur={(e) => { updateTask(groupIdx, task.id, { targetDuration: e.target.value }); setEditing(null); }} onKeyDown={(e) => { if (e.key === 'Enter') { updateTask(groupIdx, task.id, { targetDuration: e.currentTarget.value }); setEditing(null); } if (e.key === 'Escape') setEditing(null); }} />
                                                                 ) : (
-                                                                    <span 
-                                                                        onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'targetDuration' })}
-                                                                        className="text-[11px] text-slate-400 font-medium cursor-text hover:text-blue-600 transition-colors"
-                                                                    >
-                                                                        {task.targetDuration}
-                                                                    </span>
+                                                                    <span onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'targetDuration' })} className="text-[11px] text-slate-400 font-medium cursor-text hover:text-blue-600 transition-colors">{task.targetDuration}</span>
                                                                 )}
                                                             </div>
-                                                            
                                                             {task.status !== 'completed' && (
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        startSingle(task.id, task.title, group.title, task.targetDuration);
-                                                                    }}
-                                                                    className="shrink-0 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 cursor-pointer shadow-sm transition-colors"
-                                                                >
-                                                                    <PlayCircle size={10} />
-                                                                    {task.status === 'in_progress' ? 'Resume' : 'Start'}
-                                                                </button>
+                                                                <button onClick={(e) => { e.stopPropagation(); startSingle(task.id, task.title, group.title, task.targetDuration); }} className="shrink-0 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 cursor-pointer shadow-sm transition-colors"><PlayCircle size={10} />{task.status === 'in_progress' ? 'Resume' : 'Start'}</button>
                                                             )}
                                                         </div>
                                                     </div>
@@ -531,26 +300,15 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                                         );
                                     })}
                                 </div>
-                                
-                                {/* Column Footer */}
                                 <div className="p-3 border-t border-slate-50">
-                                    <button 
-                                        onClick={() => addTask(groupIdx)}
-                                        className="w-full py-2 flex items-center justify-center gap-2 text-xs font-semibold text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all border border-dashed border-slate-200 hover:border-blue-200"
-                                    >
-                                        <Plus size={14} />
-                                        Add course
-                                    </button>
+                                    <button onClick={() => addTask(groupIdx)} className="w-full py-2 flex items-center justify-center gap-2 text-xs font-semibold text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all border border-dashed border-slate-200 hover:border-blue-200"><Plus size={14} />Add course</button>
                                 </div>
                             </div>
                         );
                     })}
 
-                    {/* Add Child Column */}
-                    <div 
-                        className="h-[200px] flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 hover:border-slate-300 hover:bg-slate-100/50 transition-all cursor-pointer group/add-child" 
-                        onClick={addGroup}
-                    >
+                    {/* Add Child 占位卡片 */}
+                    <div className="h-[200px] flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 hover:border-slate-300 hover:bg-slate-100/50 transition-all cursor-pointer group/add-child" onClick={addGroup}>
                         <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-slate-400 group-hover/add-child:text-blue-500 group-hover/add-child:scale-110 shadow-sm transition-all">
                             <UserPlus size={24} />
                         </div>
@@ -560,7 +318,7 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                 </div>
             </div>
 
-            {/* Floating multi-start bar — appears when ≥2 tasks selected */}
+            {/* 底部悬浮操作栏 */}
             {selected.size > 0 && (
                 <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
                     <div className="bg-slate-900 text-white rounded-2xl shadow-2xl px-6 py-3.5 flex items-center gap-5 border border-slate-700/50">
@@ -569,26 +327,9 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
                             <span className="text-slate-400 text-sm ml-1">{selected.size === 1 ? 'course' : 'courses'} selected</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button
-                                onClick={() => setSelected(new Map())}
-                                className="text-slate-400 hover:text-white text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-700"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={completeSelected}
-                                className="bg-green-500 hover:bg-green-600 text-white px-5 py-1.5 rounded-xl font-semibold transition-colors flex items-center gap-2 text-sm"
-                            >
-                                <CheckCircle2 size={15} />
-                                Mark as Done
-                            </button>
-                            <button
-                                onClick={startSelected}
-                                className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-1.5 rounded-xl font-semibold transition-colors flex items-center gap-2 text-sm"
-                            >
-                                <PlayCircle size={15} />
-                                Start {selected.size > 1 ? `${selected.size} Timers` : 'Timer'}
-                            </button>
+                            <button onClick={() => setSelected(new Map())} className="text-slate-400 hover:text-white text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-700">Cancel</button>
+                            <button onClick={completeSelected} className="bg-green-500 hover:bg-green-600 text-white px-5 py-1.5 rounded-xl font-semibold transition-colors flex items-center gap-2 text-sm"><CheckCircle2 size={15} />Mark as Done</button>
+                            <button onClick={startSelected} className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-1.5 rounded-xl font-semibold transition-colors flex items-center gap-2 text-sm"><PlayCircle size={15} />Start {selected.size > 1 ? `${selected.size} Timers` : 'Timer'}</button>
                         </div>
                     </div>
                 </div>

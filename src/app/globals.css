@@ -59,7 +59,27 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* 🚀 终极点火协议：全景 3D 轨迹与呼吸尾焰 */
+/* 🚀 终极点火协议：星空与传统火焰 */
+
+@keyframes stars-twinkle {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.animate-stars-twinkle {
+  animation: stars-twinkle var(--twinkle-duration, 3s) infinite ease-in-out;
+}
+
+@keyframes flame-flicker {
+  0%, 100% { transform: scaleY(1) rotate(-45deg); opacity: 1; filter: brightness(1); }
+  25% { transform: scaleY(1.1) scaleX(0.9) rotate(-45deg); opacity: 0.8; filter: brightness(1.2); }
+  50% { transform: scaleY(0.9) scaleX(1.1) rotate(-45deg); opacity: 1; filter: brightness(0.9); }
+  75% { transform: scaleY(1.05) rotate(-45deg); opacity: 0.9; filter: brightness(1.1); }
+}
+
+.animate-flame-flicker {
+  animation: flame-flicker 0.1s infinite alternate;
+}
 
 @keyframes cinematic-reentry-strike {
   0% { transform: translate(0, 0) rotate(-45deg) scale(1); opacity: 1; }
@@ -74,16 +94,8 @@ body {
 }
 
 @keyframes breath { 
-  0% { 
-    transform: scaleY(0.85); 
-    opacity: 0.8; 
-    box-shadow: 0 0 20px 5px rgba(16, 185, 129, 0.5); 
-  }
-  100% { 
-    transform: scaleY(1.1); 
-    opacity: 1; 
-    box-shadow: 0 0 45px 12px rgba(16, 185, 129, 0.9); 
-  }
+  0% { transform: scaleY(0.85); opacity: 0.8; box-shadow: 0 0 20px 5px rgba(251, 146, 60, 0.5); }
+  100% { transform: scaleY(1.1); opacity: 1; box-shadow: 0 0 45px 12px rgba(251, 146, 60, 0.9); }
 }
 
 .animate-breath {

@@ -109,26 +109,44 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
 
     return (
         <div className="bg-[#0f172a] p-5 rounded-3xl shadow-2xl mb-6 relative overflow-hidden min-h-[220px] border border-slate-800 flex items-center justify-center">
+            {/* 🛰️ 层 0: 动态星空背景 */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
+                {[...Array(40)].map((_, i) => (
+                    <div
+                        key={i}
+                        className="absolute rounded-full bg-white animate-stars-twinkle"
+                        style={{
+                            top: `${(i * 137) % 100}%`,
+                            left: `${(i * 251) % 100}%`,
+                            width: `${(i % 3) + 1}px`,
+                            height: `${(i % 3) + 1}px`,
+                            animationDelay: `${(i * 0.7) % 5}s`,
+                            opacity: 0.3 + (i % 5) * 0.1
+                        }}
+                    />
+                ))}
+            </div>
+
             {/* Layer 1: 地球切片背景 */}
-            <div className="absolute -bottom-[20%] -right-[5%] w-[350px] h-[350px] bg-[url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?q=80&w=600')] bg-cover opacity-15 grayscale-[20%] mix-blend-screen pointer-events-none z-0"
+            <div className="absolute -bottom-[20%] -right-[5%] w-[350px] h-[350px] bg-[url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?q=80&w=600')] bg-cover opacity-15 grayscale-[20%] mix-blend-screen pointer-events-none z-10"
                 style={{ borderRadius: '50%', maskImage: 'radial-gradient(circle at 40% 40%, black 20%, transparent 60%)', WebkitMaskImage: 'radial-gradient(circle at 40% 40%, black 20%, transparent 60%)' }}
             />
 
-            <div className="max-w-4xl mx-auto flex items-center justify-between gap-10 relative z-10 w-full">
+            <div className="max-w-4xl mx-auto flex items-center justify-between gap-10 relative z-20 w-full">
                 {/* 左侧：Energy Bank */}
                 <div className="flex flex-col gap-2 shrink-0">
                     <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Energy Bank</h3>
                     <div className="flex flex-wrap gap-1 max-w-[180px]">
                         {[...Array(totalTasks)].map((_, i) => (
-                            <div key={i} className={`w-2.5 h-4 rounded-[3px] transition-all duration-500 ${i < completedTasks ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]' : 'bg-slate-800 opacity-40'}`} />
+                            <div key={i} className={`w-2.5 h-4 rounded-[3px] transition-all duration-500 ${i < completedTasks ? 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.6)]' : 'bg-slate-800 opacity-40'}`} />
                         ))}
                     </div>
                 </div>
 
                 {/* 中间：能量脉冲导管 */}
-                <div className="flex-1 min-w-[40px] max-w-[100px] relative h-[1px] border-t border-dashed border-emerald-700/30 self-center mt-6">
+                <div className="flex-1 min-w-[40px] max-w-[100px] relative h-[1px] border-t border-dashed border-orange-700/30 self-center mt-6">
                     {completedTasks > 0 && [...Array(3)].map((_, i) => (
-                        <span key={i} className="absolute top-[-1px] w-1 h-1 rounded-full bg-emerald-400 animate-energy-particle" style={{ animationDelay: `${i * 0.5}s` }} />
+                        <span key={i} className="absolute top-[-1px] w-1 h-1 rounded-full bg-orange-400 animate-energy-particle" style={{ animationDelay: `${i * 0.5}s` }} />
                     ))}
                 </div>
 
@@ -137,7 +155,18 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
                     <MissionStatus percentage={percentage} />
                     <div className={`relative flex flex-col items-center ${launchStatus === 'liftoff' ? 'animate-cinematic-strike' : launchStatus === 'shaking' ? 'animate-rocket-shake rotate-[-45deg]' : 'rotate-[-45deg] transition-all duration-300'}`}>
                         <ColdRocket className="w-16 h-16 drop-shadow-[0_15px_20px_rgba(0,0,0,0.8)] z-10" />
-                        <div className="animate-flame-breath rounded-full -mt-2 z-0" style={{ width: '14px', background: 'rgba(16, 185, 129, 0.95)', height: `${8 + (percentage / 100) * 30}px`, opacity: 0.2 + (percentage / 100) * 0.8, boxShadow: `0 0 ${15 + (percentage / 100) * 30}px rgba(16, 185, 129, 0.6)` }} />
+                        
+                        {/* 🚀 传统火焰：橙黄渐变 + 动态闪烁 */}
+                        <div 
+                            className={`absolute left-1/2 -translate-x-1/2 -bottom-[2px] rounded-full z-0 origin-top ${launchStatus === 'liftoff' ? 'animate-flame-flicker scale-150' : 'animate-breath'}`} 
+                            style={{ 
+                                width: '14px', 
+                                background: 'linear-gradient(to bottom, #ffcc00, #ff9500, #ff4d00)', 
+                                height: `${8 + (percentage / 100) * 35}px`, 
+                                opacity: 0.6 + (percentage / 100) * 0.4, 
+                                boxShadow: `0 0 ${15 + (percentage / 100) * 35}px rgba(251, 146, 60, 0.8), 0 0 40px rgba(239, 68, 68, 0.3)` 
+                            }} 
+                        />
                     </div>
                 </div>
             </div>
