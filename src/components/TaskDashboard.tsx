@@ -115,26 +115,29 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage, flameGlow }: 
                             <span className="text-[9px] font-black text-slate-500 uppercase">Fuel</span>
                         </div>
 
-                        <div className={`relative ${
-                            launchStatus === 'shaking' ? 'animate-rocket-shake' : 
-                            launchStatus === 'liftoff' ? 'animate-rocket-liftoff' : ''
-                        }`}>
-                            {/* Flame Glow */}
-                            <div
-                                className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full transition-all duration-500"
-                                style={{ 
-                                    boxShadow: (launchStatus === 'shaking' || launchStatus === 'liftoff')
-                                        ? '0 0 30px 10px rgba(249, 115, 22, 1), 0 0 100px 30px rgba(249, 115, 22, 0.8)'
-                                        : flameGlow 
-                                }}
-                            />
+                        <div className="w-20 h-20 rounded-full bg-slate-950 flex items-center justify-center border border-slate-800 shadow-inner relative group">
+                            {/* Inner wrapper that actually flies out */}
+                            <div className={`relative ${
+                                launchStatus === 'shaking' ? 'animate-rocket-shake' : 
+                                launchStatus === 'liftoff' ? '-translate-y-[200vh] translate-x-[200vw] animate-rocket-liftoff transition-all duration-700 ease-in' : 'translate-y-0 translate-x-0'
+                            }`}>
+                                {/* Flame Glow */}
+                                <div
+                                    className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full transition-all duration-500"
+                                    style={{ 
+                                        boxShadow: (launchStatus === 'shaking' || launchStatus === 'liftoff')
+                                            ? '0 0 30px 10px rgba(249, 115, 22, 1), 0 0 100px 30px rgba(249, 115, 22, 0.8)'
+                                            : flameGlow 
+                                    }}
+                                />
 
-                            <div className="relative text-6xl select-none cursor-pointer hover:scale-110 transition-transform">
-                                🚀
+                                <div className="relative text-6xl select-none cursor-pointer hover:scale-110 transition-transform">
+                                    🚀
+                                </div>
                             </div>
 
-                            {/* Percentage Label */}
-                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-lg whitespace-nowrap">
+                            {/* Percentage Label - stays with the gantry */}
+                            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-800 px-2 py-0.5 rounded-lg whitespace-nowrap z-10">
                                 <span className="text-[10px] font-black text-white">{Math.round(percentage)}%</span>
                             </div>
                         </div>
@@ -217,7 +220,14 @@ export default function TaskDashboard({ onStartTasks }: TaskDashboardProps) {
     if (!isHydrated) return null; // or a skeleton loader
 
     return (
-        <div className="flex-1 bg-[#f7f8fa] flex flex-col overflow-hidden h-[calc(100vh-64px)]">
+        <div className="flex-1 bg-[#f7f8fa] flex flex-col overflow-hidden h-[calc(100vh-64px)] relative">
+            {/* Starfield Background Layer */}
+            <div 
+                className="absolute inset-0 opacity-[0.03] pointer-events-none"
+                style={{ 
+                    backgroundImage: 'url(https://www.transparenttextures.com/patterns/stardust.png)',
+                }}
+            />
             <input 
                 type="file" 
                 ref={fileInputRef} 
