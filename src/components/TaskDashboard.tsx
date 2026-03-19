@@ -3,18 +3,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Clock, CheckCircle2, PlayCircle, Plus, Image as ImageIcon, Circle, Trash2, UserPlus, X } from 'lucide-react';
 import { useTaskStore } from '@/store/useTaskStore';
+import { ColdRocket } from './ColdRocket';
 
 /* ── Rocket Assets & Sub-components ── */
-const ColdRocket = () => (
-    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="relative z-10">
-        <path d="M12 2C12 2 7 6 7 12C7 16 9 18 12 18C15 18 17 16 17 12C17 6 12 2 12 2Z" fill="#CBD5E1"/>
-        <path d="M7 12L3 17V19L7 18V12Z" fill="#94A3B8"/>
-        <path d="M17 12L21 17V19L17 18V12Z" fill="#94A3B8"/>
-        <circle cx="12" cy="10" r="2" fill="#1E293B"/>
-        {/* Nozzle detail */}
-        <path d="M10 18H14V19H10V18Z" fill="#64748B"/>
-    </svg>
-);
 
 const RocketFlame = ({ percentage, launchStatus }: { percentage: number; launchStatus: string }) => {
     const isLaunching = launchStatus === 'shaking' || launchStatus === 'liftoff';
@@ -23,7 +14,7 @@ const RocketFlame = ({ percentage, launchStatus }: { percentage: number; launchS
         <div 
             className="absolute left-1/2 -translate-x-1/2 rounded-full transition-all duration-300 pointer-events-none"
             style={{ 
-                bottom: '-12px',
+                bottom: '-2px',
                 width: '16px',
                 height: `${8 + percentage / 6.25}px`,
                 opacity: 0.3 + percentage / 142,
@@ -156,7 +147,7 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
                             }`}>
                                 <RocketFlame percentage={percentage} launchStatus={launchStatus} />
                                 <div className="relative select-none cursor-pointer hover:scale-110 transition-transform">
-                                    <ColdRocket />
+                                    <ColdRocket className="w-16 h-16 drop-shadow-xl" />
                                 </div>
                             </div>
 
