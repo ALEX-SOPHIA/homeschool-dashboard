@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // We removed the URL here to comply with (遵循) Prisma V7 standards
+}
+
+// 1. The Tenant (租户)
+model Family {
+  id        String    @id @default(uuid())
+  name      String    // e.g., "The Smith Family"
+  createdAt DateTime  @default(now())
+  
+  // A family can have multiple children (One-to-many relationship / 一对多关联)
+  students  Student[]
+}
+
+// 2. The Child/User (子用户)
+model Student {
+  id        String    @id @default(uuid())
+  name      String
+  avatar    String?   // The '?' means this field is optional (可选字段)
+  
+  // Foreign Key (外键) linking to the Family table
+  familyId  String
+  family    Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  
+  // A student has many tasks
+  tasks     Task[]
+}
+
+// 3. The Assignment (学习任务)
+model Task {
+  id             String        @id @default(uuid())
+  title          String
+  subject        String?
+  targetDuration String?
+  status         String        @default("pending") // "pending", "in_progress", or "completed"
+  
+  // Foreign Key linking to the Student table
+  studentId      String
+  student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  // A task can have multiple timer sessions logged against it
+  timeSessions   TimeSession[]
+}
+
+// 4. The Analytics Ledger (数据流水账)
+model TimeSession {
+  id              String    @id @default(uuid())
+  startTime       DateTime  @default(now())
+  endTime         DateTime? // Nullable (可为空的), because a timer might still be running
+  durationMinutes Int?      // Calculated upon completion (完成时计算)
+  
+  // Foreign Key linking to the Task table
+  taskId          String
+  task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
