@@ -2,7 +2,8 @@
 
 :root {
   --background: #f8f9fa;
-  --foreground: #1b263b; /* Deep Navy text */
+  --foreground: #1b263b;
+  /* Deep Navy text */
   --card: #ffffff;
   --card-foreground: #1b263b;
   --border: #e2e8f0;
@@ -26,7 +27,7 @@
   --color-primary-foreground: var(--primary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  
+
   --color-pastel-blue: var(--pastel-blue);
   --color-pastel-green: var(--pastel-green);
   --color-pastel-pink: var(--pastel-pink);
@@ -38,22 +39,131 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0d1b2a;
-    --foreground: #e0e1dd;
-    --card: #1b263b;
-    --card-foreground: #e0e1dd;
-    --border: #415a77;
-    --primary: #778da9;
-    --primary-foreground: #0d1b2a;
-    --muted: #1b263b;
-    --muted-foreground: #778da9;
+    --background: #0a0a0a;
+    --foreground: #ededed;
   }
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* =========================================
+   🚀 火箭仪表盘核心动画库 (Core Animations)
+   ========================================= */
+
+/* 1. 用户调优版：深空远征与姿态回正 */
+@keyframes epic-flight-to-planet {
+  0% {
+    transform: translate(0, 0) rotate(-45deg) scale(1);
+    opacity: 1;
+  }
+
+  25% {
+    transform: translate(-10vw, -25vh) rotate(-65deg) scale(0.9);
+    opacity: 1;
+  }
+
+  60% {
+    transform: translate(-30vw, 5vh) rotate(-110deg) scale(0.7);
+    opacity: 0.9;
+  }
+
+  100% {
+    transform: translate(-50vw, 0vh) rotate(-45deg) scale(0);
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+
+.animate-epic-flight {
+  animation: epic-flight-to-planet 2.5s ease-in-out forwards;
+}
+
+/* 🚀 修正版：响应式能量输送轨迹 (Logical Pipeline Delivery) */
+@keyframes energy-particle {
+  0% {
+    /* 使用 left 逻辑属性从容器的最左侧（能量块边缘）开始 */
+    left: 0%;
+    /* 配合 logical-shift：使用 -100% 的 horizontal-translate，让粒子在导管开始前完全蓄力 */
+    transform: translate(-100%, -50%) scale(0.5);
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  80% {
+    opacity: 1;
+  }
+
+  100% {
+    /* 终点锁定在容器的最右侧（火箭尾部排气口） */
+    left: 100%;
+    /* 配合 logical-shift：使用 0% 的 horizontal-translate，让粒子刚好飞抵边界，不再多余偏移 */
+    transform: translate(0%, -50%) scale(1);
+    opacity: 0;
+  }
+}
+
+.animate-energy-particle {
+  /* =========================================
+     🎯 关键：对粒子元素本身应用逻辑定位
+     确保这些光点真正处于“导管内部”
+     ========================================= */
+  position: absolute;
+  /* 确保 left 属性相对于虚线导管生效 */
+  top: 50%;
+  /* 垂直方向强制居中在导管上 */
+  /* 其他设定（速度、循环）保持不动 */
+  animation: energy-particle 2s linear infinite;
+}
+
+/* 3. 起飞前引擎震动 (Engine Shaking) */
+@keyframes rocket-shake {
+  0% {
+    transform: translate(1px, 1px) rotate(-45deg);
+  }
+
+  50% {
+    transform: translate(-1px, -1px) rotate(-46deg);
+  }
+
+  100% {
+    transform: translate(1px, -1px) rotate(-45deg);
+  }
+}
+
+.animate-rocket-shake {
+  animation: rocket-shake 0.1s ease-in-out infinite;
+}
+
+/* 4. 星空闪烁 (Twinkling Stars) */
+@keyframes twinkle {
+
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+    box-shadow: 0 0 2px 0px rgba(255, 255, 255, 0.1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+    box-shadow: 0 0 10px 1px rgba(255, 255, 255, 0.6);
+  }
+}
+
+.animate-twinkle {
+  animation: twinkle linear infinite;
 }
