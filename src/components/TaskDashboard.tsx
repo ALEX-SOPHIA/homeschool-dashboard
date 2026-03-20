@@ -5,17 +5,26 @@ import { CheckCircle2, PlayCircle, Plus, Image as ImageIcon, Circle, Trash2, Use
 import { useTaskStore } from '@/store/useTaskStore';
 import { ColdRocket } from './ColdRocket';
 
-/* ── 子组件：任务状态与燃料槽 ── */
-const MissionStatus = ({ percentage }: { percentage: number }) => (
-    <div className="flex flex-col items-center gap-1 mb-3">
-        <div className="text-xl font-black text-white tracking-tighter italic leading-none">
-            {Math.round(percentage)}% <span className="text-[9px] text-slate-500 not-italic ml-1 uppercase tracking-widest">Fuel Loaded</span>
-        </div>
-        <div className="w-20 h-1 bg-slate-900 rounded-full overflow-hidden border border-slate-800 mt-1">
-            <div
-                className="h-full bg-emerald-500 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(16,185,129,0.6)]"
-                style={{ width: `${percentage}%` }}
-            />
+
+/* ── 🏆 子组件：纯 CSS 璀璨星云星球 (Procedural Asset) ── */
+const ProceduralPlanet = () => (
+    <div className="relative w-32 h-32 md:w-40 md:h-40 group/planet">
+        <div className="absolute inset-0 rounded-full bg-black border-4 border-slate-900 shadow-[0_0_50px_10px_rgba(16,185,129,0.3)] animate-pulse overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-950 via-emerald-800 to-indigo-950 opacity-90" />
+
+            {/* 程序生成星球内部星尘 */}
+            {[...Array(20)].map((_, i) => (
+                <div key={i} className="absolute w-[1px] h-[1px] bg-white rounded-full opacity-70 animate-twinkle"
+                    style={{
+                        top: `${Math.random() * 80 + 10}%`,
+                        left: `${Math.random() * 80 + 10}%`,
+                        animationDelay: `${Math.random() * 3}s`
+                    }} />
+            ))}
+
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90%] h-[90%] rounded-full bg-radial-gradient(ellipse at center, rgba(16,185,129,0.7)_0%,_rgba(59,130,246,0.2)_40%,_transparent_70%) opacity-60" />
+            <div className="absolute inset-0 rounded-full z-10" style={{ background: 'radial-gradient(circle at center, transparent 30%, rgba(0,0,0,0.8) 100%)' }} />
+            <div className="absolute top-[10%] left-[20%] w-[30%] h-[30%] bg-white/20 rounded-full filter blur-xl z-20" />
         </div>
     </div>
 );
@@ -25,18 +34,15 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
     totalTasks: number; completedTasks: number; percentage: number;
 }) {
     const [launchStatus, setLaunchStatus] = useState<'idle' | 'shaking' | 'liftoff' | 'completed'>('idle');
-
-    // 🛡️ 引用音频对象，处理长音效淡出与防止重复播放
     const igniteAudioRef = useRef<HTMLAudioElement | null>(null);
     const audioPlayed = useRef({ shake: false, cheer: false });
 
-    // 🛑 核心修复：单向状态驱动，彻底消除 useEffect 闭包陷阱
     useEffect(() => {
         if (percentage === 100 && totalTasks > 0) {
             setLaunchStatus('shaking');
 
-            // 1. 点火
             if (!audioPlayed.current.shake) {
+                // ⚠️ TEMPORARY: Unstable hotlinked sound asset.
                 const audio = new Audio('/sounds/ignite.wav');
                 audio.volume = 0.6;
                 igniteAudioRef.current = audio;
@@ -47,7 +53,6 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
             const timer1 = setTimeout(() => {
                 setLaunchStatus('liftoff');
 
-                // 🔊 安全的音量淡出逻辑 (防止浮点数越界导致浏览器报错)
                 if (igniteAudioRef.current) {
                     const fadeOut = setInterval(() => {
                         if (igniteAudioRef.current) {
@@ -69,12 +74,12 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
             const timer2 = setTimeout(() => {
                 setLaunchStatus('completed');
 
-                // 彻底关闭点火音，播放喝彩
                 if (igniteAudioRef.current) {
                     igniteAudioRef.current.pause();
                     igniteAudioRef.current = null;
                 }
                 if (!audioPlayed.current.cheer) {
+                    // ⚠️ TEMPORARY: Unstable hotlinked sound asset.
                     const cheerAudio = new Audio('/sounds/cheer.wav');
                     cheerAudio.volume = 0.8;
                     cheerAudio.play().catch(e => console.warn("Audio play failed:", e));
@@ -86,8 +91,7 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
                 clearTimeout(timer1);
                 clearTimeout(timer2);
             };
-        } else {
-            // 当数据回滚 (<100%) 时，强制重置所有状态和音频锁
+        } else if (percentage < 100) {
             setLaunchStatus('idle');
             audioPlayed.current = { shake: false, cheer: false };
             if (igniteAudioRef.current) {
@@ -95,90 +99,97 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
                 igniteAudioRef.current = null;
             }
         }
-    }, [percentage, totalTasks]); // 🎯 依赖项绝对干净，没有 launchStatus
+    }, [percentage, totalTasks]);
 
     if (launchStatus === 'completed') {
         return (
-            <div className="bg-[#0f172a] p-6 rounded-3xl shadow-2xl mb-6 flex flex-col items-center justify-center min-h-[220px] border border-slate-800 animate-in fade-in zoom-in duration-700 relative overflow-hidden">
-                <div className="text-5xl mb-3 animate-bounce">🌕</div>
-                <h3 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-emerald-400 italic">MISSION COMPLETE</h3>
-                <div className="absolute inset-0 bg-emerald-500/5 animate-pulse pointer-events-none" />
+            <div className="bg-black p-8 rounded-xl shadow-2xl mb-8 flex flex-col items-center justify-center min-h-[260px] border border-slate-900 animate-in fade-in zoom-in duration-700 relative overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none z-0 flex justify-center items-center scale-110">
+                    <ProceduralPlanet />
+                </div>
+                <div className="absolute inset-0 pointer-events-none z-0" style={{ background: 'radial-gradient(circle, transparent 20%, rgba(0,0,0,0.8) 100%)' }} />
+
+                <div className="relative z-10 flex flex-col items-center justify-center mt-4">
+                    <div className="absolute w-[120%] h-[120%] bg-black/60 blur-2xl rounded-full z-[-1]" />
+                    <h3 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-indigo-400 tracking-tighter uppercase italic">
+                        MISSION COMPLETE 🚀
+                    </h3>
+                    <p className="mt-6 text-emerald-400 font-bold tracking-[0.4em] uppercase text-sm animate-pulse shadow-black drop-shadow-md">
+                        All Systems Clear
+                    </p>
+                </div>
             </div>
         );
     }
 
+    // 🏆 主发射台区域 (Idle/Shaking/Liftoff)
     return (
-        <div className="bg-[#0f172a] p-5 rounded-3xl shadow-2xl mb-6 relative overflow-hidden min-h-[220px] border border-slate-800 flex items-center justify-center">
-            {/* 🛰️ 层 0: 动态星空背景 */}
-            <div className="absolute inset-0 pointer-events-none overflow-hidden z-0">
-                {[...Array(40)].map((_, i) => (
+        <div className="bg-black p-8 rounded-xl shadow-2xl mb-8 relative overflow-hidden min-h-[220px] border border-slate-900 flex items-center justify-center">
+
+            {/* 🎯 终极方案：纯 CSS 璀璨星空背景层 */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                {/* Layer 1: TEMPORARY Hotlinked texture (用于微弱背景尘埃) */}
+                {/* ✅ 替代方案：纯 CSS 幽蓝深空背景 (无任何外部依赖) */}
+                <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900/40 via-black to-black pointer-events-none" />
+
+                {/* Layer 2: 动态程序生成 CSS 星星 (Twinkling Stars) */}
+                {[...Array(50)].map((_, i) => (
                     <div
                         key={i}
-                        className="absolute rounded-full bg-white animate-stars-twinkle"
+                        className="absolute rounded-full bg-white animate-twinkle opacity-30"
                         style={{
-                            top: `${(i * 137) % 100}%`,
-                            left: `${(i * 251) % 100}%`,
-                            width: `${(i % 3) + 1}px`,
-                            height: `${(i % 3) + 1}px`,
-                            animationDelay: `${(i * 0.7) % 5}s`,
-                            opacity: 0.3 + (i % 5) * 0.1
+                            // 随机尺寸 (1px 或 2px)
+                            width: `${Math.random() < 0.7 ? 1 : 2}px`,
+                            height: `${Math.random() < 0.7 ? 1 : 2}px`,
+                            // 随机 X/Y轴位置
+                            top: `${Math.random() * 100}%`,
+                            left: `${Math.random() * 100}%`,
+                            // 随机闪烁延迟 (0~5s)
+                            animationDelay: `${Math.random() * 5}s`,
+                            // 随机闪烁频率 (3~7s)
+                            animationDuration: `${3 + Math.random() * 4}s`
                         }}
                     />
                 ))}
             </div>
 
-            {/* Layer 1: 地球切片背景 */}
-            <div className="absolute -bottom-[20%] -right-[5%] w-[350px] h-[350px] bg-[url('https://images.unsplash.com/photo-1614730321146-b6fa6a46bcb4?q=80&w=600')] bg-cover opacity-15 grayscale-[20%] mix-blend-screen pointer-events-none z-10"
-                style={{ borderRadius: '50%', maskImage: 'radial-gradient(circle at 40% 40%, black 20%, transparent 60%)', WebkitMaskImage: 'radial-gradient(circle at 40% 40%, black 20%, transparent 60%)' }}
-            />
+            <div className="max-w-4xl mx-auto flex items-center justify-between gap-12 relative z-10 w-full h-full">
 
-            <div className="max-w-4xl mx-auto flex items-center justify-between gap-10 relative z-20 w-full">
-                {/* 左侧：Energy Bank */}
-                <div className="flex flex-col gap-2 shrink-0">
-                    <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Energy Bank</h3>
-                    <div className="flex flex-wrap gap-1.5 max-w-[200px]">
-                        {[...Array(totalTasks)].map((_, i) => (
-                            <div key={i} className={`w-2.5 h-4 rounded-[3px] transition-all duration-500 border ${
-                                i < completedTasks 
-                                ? 'bg-orange-500 border-orange-400 shadow-[0_0_10px_rgba(249,115,22,0.8)]' 
-                                : 'bg-slate-600/30 border-slate-500/20'
-                            }`} />
-                        ))}
-                    </div>
-                </div>
-
-                {/* 中间：能量脉冲导管 */}
-                <div className="flex-1 min-w-[40px] max-w-[100px] relative h-[1px] border-t border-dashed border-orange-700/30 self-center mt-6">
-                    {completedTasks > 0 && [...Array(3)].map((_, i) => (
-                        <span key={i} className="absolute top-[-1px] w-1 h-1 rounded-full bg-orange-400 animate-energy-particle" style={{ animationDelay: `${i * 0.5}s` }} />
-                    ))}
-                </div>
-
-                {/* 右侧：火箭载荷 */}
-                <div className="flex flex-col items-center">
-                    <MissionStatus percentage={percentage} />
-                    
-                    {/* Outer Wrapper: Translation Only (Animation) */}
-                    <div className={`relative z-20 ${
-                        launchStatus === 'liftoff' ? 'animate-cinematic-strike' : 
-                        launchStatus === 'shaking' ? 'animate-rocket-shake' : ''
-                    }`}>
-                        {/* Inner Wrapper: Posture Lock (Rotation Only) - Points Left */}
-                        <div className="relative flex flex-col items-center rotate-[-90deg]">
-                            <ColdRocket className="w-16 h-16 drop-shadow-[0_15px_20px_rgba(0,0,0,0.8)] z-10" />
-                            
-                            {/* 🚀 传统火焰：橙黄渐变 + 动态闪烁 - Now anchored inside rotation context */}
-                            <div 
-                                className={`absolute left-1/2 -translate-x-1/2 -bottom-[2px] rounded-full z-0 origin-top ${launchStatus === 'liftoff' ? 'animate-flame-flicker scale-150' : 'animate-breath'}`} 
-                                style={{ 
-                                    width: '14px', 
-                                    background: 'linear-gradient(to bottom, #ffcc00, #ff9500, #ff4d00)', 
-                                    height: `${8 + (percentage / 100) * 35}px`, 
-                                    opacity: 0.6 + (percentage / 100) * 0.4, 
-                                    boxShadow: `0 0 ${15 + (percentage / 100) * 35}px rgba(251, 146, 60, 0.8), 0 0 40px rgba(239, 68, 68, 0.3)` 
-                                }} 
-                            />
+                {launchStatus === 'idle' || launchStatus === 'shaking' ? (
+                    <div className="flex items-center flex-1 gap-12 animate-in fade-in duration-500">
+                        <div className="flex flex-col gap-4 shrink-0">
+                            <div className="flex items-center gap-2 mb-1">
+                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Energy Bank</h3>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 max-w-[220px]">
+                                {[...Array(totalTasks)].map((_, i) => (
+                                    <div key={i} className={`w-3 h-5 rounded-[4px] transition-all duration-500 ${i < completedTasks ? 'bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]' : 'bg-slate-800 border border-slate-700 opacity-60'}`} />
+                                ))}
+                            </div>
+                            <div className="flex items-end gap-2 mt-1">
+                                <span className="text-xl font-black text-white italic tracking-tighter leading-none">{Math.round(percentage)}%</span>
+                                <span className="text-slate-500 text-xs uppercase tracking-wider">/ 100% Complete</span>
+                            </div>
                         </div>
+
+                        <div className="w-[120px] md:w-[250px] relative h-[2px] border-t-2 border-dashed border-emerald-700/40 self-center shrink-0">
+                            {completedTasks > 0 && [...Array(3)].map((_, i) => (
+                                <span key={i} className="absolute top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-energy-particle" style={{ animationDelay: `${i * 0.6}s` }} />
+                            ))}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex-1 flex justify-start items-center animate-in zoom-in slide-in-from-left-10 duration-1000">
+                        <ProceduralPlanet />
+                    </div>
+                )}
+
+                <div className={`shrink-0 z-10 ${launchStatus === 'liftoff' ? 'animate-epic-flight' : launchStatus === 'shaking' ? 'animate-rocket-shake rotate-[-45deg]' : 'rotate-[-45deg] transition-all duration-300'}`}>
+                    <div className="relative w-24 h-24">
+                        <ColdRocket className="absolute inset-0 w-full h-full drop-shadow-[0_20px_30px_rgba(0,0,0,1)] z-10" />
+                        <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-[#f97316] rounded-full filter blur-[2px] opacity-100 animate-pulse shadow-[0_0_24px_rgba(249,115,22,1)] z-0" />
+                        <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-6 h-6 bg-[#f97316] rounded-full filter blur-[4px] opacity-70 animate-pulse shadow-[0_0_32px_rgba(249,115,22,1)] z-0" />
                     </div>
                 </div>
             </div>
@@ -186,7 +197,7 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
     );
 }
 
-/* ── 主组件：TaskDashboard ── */
+/* ── 主看板组件：TaskDashboard (剩余部分保留) ── */
 export default function TaskDashboard({ onStartTasks }: { onStartTasks: (tasks: any[]) => void }) {
     const { groups, addTask, removeTask, updateTask, updateGroup, addGroup, removeGroup, undoTask } = useTaskStore();
     const [selected, setSelected] = useState<Map<string, any>>(new Map());
@@ -196,12 +207,10 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks: (tasks: 
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploadingGroupIdx, setUploadingGroupIdx] = useState<number | null>(null);
 
-    // 解决 Next.js  hydration 错误
     useEffect(() => { setIsHydrated(true); }, []);
 
     if (!isHydrated) return null;
 
-    // 统计全局任务进度
     const totalTasks = groups.reduce((acc, g) => acc + g.tasks.length, 0);
     const completedTasks = groups.reduce((acc, g) => acc + g.tasks.filter(t => t.status === 'completed').length, 0);
     const percentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
@@ -221,6 +230,8 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks: (tasks: 
             };
             reader.readAsDataURL(file);
         }
+        // 加上这行：清空 input 的值，确保下次选同一张图也能触发
+        e.target.value = '';
     };
 
     const toggle = (taskId: string, title: string, subject: string, targetDuration: string) => {
@@ -252,7 +263,6 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks: (tasks: 
         <div className="flex-1 bg-[#f7f8fa] flex flex-col overflow-hidden h-[calc(100vh-64px)] relative">
             <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileChange} />
 
-            {/* 顶部火箭发射台 */}
             <div className="shrink-0 px-8 pt-8 pb-5">
                 <div className="flex justify-between items-center mb-6">
                     <div>
@@ -263,7 +273,6 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks: (tasks: 
                 <RocketLaunchpad totalTasks={totalTasks} completedTasks={completedTasks} percentage={percentage} />
             </div>
 
-            {/* 核心看板区域 */}
             <div className="flex-1 overflow-y-auto px-8 pb-8 scroll-smooth">
                 <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6 items-start">
                     {groups.map((group, groupIdx) => {
@@ -288,10 +297,7 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks: (tasks: 
                                             )}
                                             <div className="text-white/70 text-xs">{group.duration} scheduled</div>
                                         </div>
-                                        <div className="shrink-0 text-right">
-                                            <div className="text-xl font-bold">{completedCourses}<span className="text-white/60 text-sm font-normal">/{totalCourses}</span></div>
-                                            <div className="text-white/70 text-[10px] uppercase tracking-wide">Done</div>
-                                        </div>
+                                        <div className="shrink-0 text-right font-bold">{completedCourses}/{totalCourses}</div>
                                     </div>
                                     <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
                                         <div className="h-full bg-white rounded-full transition-all duration-700 ease-out" style={{ width: `${progressPercent}%` }} />
@@ -301,14 +307,13 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks: (tasks: 
                                 <div className="flex-1 overflow-y-auto p-3 space-y-2">
                                     {group.tasks.map((task) => {
                                         const isSelected = selected.has(task.id);
-                                        const canSelect = task.status !== 'completed';
 
                                         return (
-                                            <div key={task.id} className={`group relative rounded-xl px-3.5 py-3 border transition-all ${isSelected ? 'bg-blue-50 border-blue-300 shadow-sm shadow-blue-100' : task.status === 'in_progress' ? 'bg-amber-50 border-amber-200' : task.status === 'completed' ? 'bg-slate-50 border-slate-100 opacity-60' : 'bg-white border-slate-100 hover:border-slate-200'}`}>
+                                            <div key={task.id} className={`group relative rounded-xl px-3.5 py-3 border transition-all ${isSelected ? 'bg-blue-50 border-blue-300 shadow-sm shadow-blue-100' : task.status === 'completed' ? 'bg-slate-50 opacity-60' : 'bg-white border-slate-100 hover:border-slate-200'}`}>
                                                 <button onClick={(e) => { e.stopPropagation(); removeTask(groupIdx, task.id); }} className="absolute -right-2 -top-2 w-6 h-6 bg-white border border-slate-200 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shadow-sm z-10"><Trash2 size={12} /></button>
                                                 <div className="flex items-center gap-3">
-                                                    <button disabled={!canSelect && task.status !== 'completed'} onClick={(e) => { if (task.status === 'completed') { e.stopPropagation(); undoTask(task.id); } else if (canSelect) { toggle(task.id, task.title, group.title, task.targetDuration); } }} className={`shrink-0 ${task.status === 'completed' ? 'cursor-pointer hover:scale-110 active:scale-95 transition-transform' : 'disabled:cursor-default'}`}>
-                                                        {task.status === 'completed' ? <CheckCircle2 size={18} className="text-emerald-500" /> : isSelected ? <div className="w-[18px] h-[18px] rounded-full bg-blue-500 flex items-center justify-center"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></div> : task.status === 'in_progress' ? <div className="w-[18px] h-[18px] rounded-full bg-amber-400 border-2 border-amber-300 hover:ring-2 hover:ring-blue-300" /> : <Circle size={18} className="text-slate-200 hover:text-blue-300 transition-colors" />}
+                                                    <button onClick={(e) => { e.stopPropagation(); if (task.status === 'completed') { undoTask(task.id); } else { toggle(task.id, task.title, group.title, task.targetDuration); } }} className={`shrink-0 cursor-pointer transition-transform ${task.status === 'completed' ? 'hover:scale-110 active:scale-95' : ''}`}>
+                                                        {task.status === 'completed' ? <CheckCircle2 size={18} className="text-emerald-500" /> : isSelected ? <div className="w-[18px] h-[18px] rounded-full bg-blue-500 flex items-center justify-center"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2 5l2.5 2.5L8 3" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg></div> : <Circle size={18} className="text-slate-200 hover:text-blue-300 transition-colors" />}
                                                     </button>
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex justify-between items-start">
@@ -332,7 +337,7 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks: (tasks: 
                                                                 )}
                                                             </div>
                                                             {task.status !== 'completed' && (
-                                                                <button onClick={(e) => { e.stopPropagation(); startSingle(task.id, task.title, group.title, task.targetDuration); }} className="shrink-0 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 cursor-pointer shadow-sm transition-colors"><PlayCircle size={10} />{task.status === 'in_progress' ? 'Resume' : 'Start'}</button>
+                                                                <button onClick={() => startSingle(task.id, task.title, group.title, task.targetDuration)} className="shrink-0 bg-blue-500 hover:bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-lg flex items-center gap-1 cursor-pointer"><PlayCircle size={10} />{task.status === 'in_progress' ? 'Resume' : 'Start'}</button>
                                                             )}
                                                         </div>
                                                     </div>
@@ -342,35 +347,29 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks: (tasks: 
                                     })}
                                 </div>
                                 <div className="p-3 border-t border-slate-50">
-                                    <button onClick={() => addTask(groupIdx)} className="w-full py-2 flex items-center justify-center gap-2 text-xs font-semibold text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all border border-dashed border-slate-200 hover:border-blue-200"><Plus size={14} />Add course</button>
+                                    <button onClick={() => addTask(groupIdx)} className="w-full py-2 flex items-center justify-center gap-2 text-xs font-semibold text-slate-400 hover:text-blue-500 rounded-xl transition-all border border-dashed border-slate-200"><Plus size={14} />Add course</button>
                                 </div>
                             </div>
                         );
                     })}
 
-                    {/* Add Child 占位卡片 */}
-                    <div className="h-[200px] flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 hover:border-slate-300 hover:bg-slate-100/50 transition-all cursor-pointer group/add-child" onClick={addGroup}>
-                        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-slate-400 group-hover/add-child:text-blue-500 group-hover/add-child:scale-110 shadow-sm transition-all">
+                    <div className="h-[200px] flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 hover:bg-slate-100/50 transition-all cursor-pointer group/add-child" onClick={addGroup}>
+                        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-slate-400 group-hover/add-child:text-blue-500 transition-all">
                             <UserPlus size={24} />
                         </div>
-                        <div className="mt-4 text-sm font-bold text-slate-400 group-hover/add-child:text-slate-500 transition-colors">Add Child</div>
-                        <div className="mt-1 text-xs text-slate-400/70">Create a new schedule</div>
+                        <div className="mt-4 text-sm font-bold text-slate-400">Add Child</div>
                     </div>
                 </div>
             </div>
 
-            {/* 底部悬浮操作栏 */}
             {selected.size > 0 && (
                 <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
                     <div className="bg-slate-900 text-white rounded-2xl shadow-2xl px-6 py-3.5 flex items-center gap-5 border border-slate-700/50">
-                        <div>
-                            <span className="font-bold">{selected.size}</span>
-                            <span className="text-slate-400 text-sm ml-1">{selected.size === 1 ? 'course' : 'courses'} selected</span>
-                        </div>
+                        <span className="text-sm font-bold text-slate-400">{selected.size} courses selected</span>
                         <div className="flex items-center gap-2">
-                            <button onClick={() => setSelected(new Map())} className="text-slate-400 hover:text-white text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-slate-700">Cancel</button>
-                            <button onClick={completeSelected} className="bg-green-500 hover:bg-green-600 text-white px-5 py-1.5 rounded-xl font-semibold transition-colors flex items-center gap-2 text-sm"><CheckCircle2 size={15} />Mark as Done</button>
-                            <button onClick={startSelected} className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-1.5 rounded-xl font-semibold transition-colors flex items-center gap-2 text-sm"><PlayCircle size={15} />Start {selected.size > 1 ? `${selected.size} Timers` : 'Timer'}</button>
+                            <button onClick={() => setSelected(new Map())} className="text-slate-400 hover:text-white text-sm px-3 py-1.5">Cancel</button>
+                            <button onClick={completeSelected} className="bg-green-500 hover:bg-green-600 text-white px-5 py-1.5 rounded-xl font-semibold flex items-center gap-2 text-sm"><CheckCircle2 size={15} />Mark Done</button>
+                            <button onClick={startSelected} className="bg-blue-500 hover:bg-blue-600 text-white px-5 py-1.5 rounded-xl font-semibold flex items-center gap-2 text-sm"><PlayCircle size={15} />Start Timer</button>
                         </div>
                     </div>
                 </div>

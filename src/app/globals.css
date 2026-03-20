@@ -39,179 +39,131 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0d1b2a;
-    --foreground: #e0e1dd;
-    --card: #1b263b;
-    --card-foreground: #e0e1dd;
-    --border: #415a77;
-    --primary: #778da9;
-    --primary-foreground: #0d1b2a;
-    --muted: #1b263b;
-    --muted-foreground: #778da9;
+    --background: #0a0a0a;
+    --foreground: #ededed;
   }
 }
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
-/* 🚀 终极点火协议：星空与传统火焰 */
-
-@keyframes stars-twinkle {
-
-  0%,
-  100% {
-    opacity: 0.3;
-    transform: scale(1);
-  }
-
-  50% {
-    opacity: 1;
-    transform: scale(1.2);
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
   }
 }
 
-.animate-stars-twinkle {
-  animation: stars-twinkle var(--twinkle-duration, 3s) infinite ease-in-out;
-}
+/* =========================================
+   🚀 火箭仪表盘核心动画库 (Core Animations)
+   ========================================= */
 
-@keyframes flame-flicker {
-
-  0%,
-  100% {
-    transform: scaleY(1) rotate(-45deg);
+/* 1. 用户调优版：深空远征与姿态回正 */
+@keyframes epic-flight-to-planet {
+  0% {
+    transform: translate(0, 0) rotate(-45deg) scale(1);
     opacity: 1;
-    filter: brightness(1);
   }
 
   25% {
-    transform: scaleY(1.1) scaleX(0.9) rotate(-45deg);
-    opacity: 0.8;
-    filter: brightness(1.2);
-  }
-
-  50% {
-    transform: scaleY(0.9) scaleX(1.1) rotate(-45deg);
+    transform: translate(-10vw, -25vh) rotate(-65deg) scale(0.9);
     opacity: 1;
-    filter: brightness(0.9);
-  }
-
-  75% {
-    transform: scaleY(1.05) rotate(-45deg);
-    opacity: 0.9;
-    filter: brightness(1.1);
-  }
-}
-
-.animate-flame-flicker {
-  animation: flame-flicker 0.1s infinite alternate;
-}
-
-/* 🚀 波浪式水平投送：横穿屏幕并吸收 (Wavy Horizontal Delivery) */
-@keyframes cinematic-strike-reentry {
-  0% { transform: translateX(0) translateY(0) scale(1); opacity: 1; }
-  15% { transform: translateX(2vw) translateY(1vh) scale(1.05); opacity: 1; } /* Recoil */
-  40% { transform: translateX(-20vw) translateY(-12vh) scale(0.9); opacity: 0.95; } /* Curve UP */
-  70% { transform: translateX(-45vw) translateY(8vh) scale(0.7); opacity: 0.9; } /* Curve DOWN */
-  100% { transform: translateX(-65vw) translateY(0) scale(0.2); opacity: 0; } /* Final Absorption */
-}
-
-.animate-cinematic-strike {
-  animation: cinematic-strike-reentry 2.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-
-
-@keyframes breath {
-  0% {
-    transform: scaleY(0.85);
-    opacity: 0.8;
-    box-shadow: 0 0 20px 5px rgba(251, 146, 60, 0.5);
-  }
-
-  100% {
-    transform: scaleY(1.1);
-    opacity: 1;
-    box-shadow: 0 0 45px 12px rgba(251, 146, 60, 0.9);
-  }
-}
-
-.animate-breath {
-  animation: breath 1.5s infinite alternate ease-in-out;
-}
-
-@keyframes rocket-shake {
-
-  0%,
-  100% {
-    transform: translate(0, 0) rotate(0deg);
-  }
-
-  10% {
-    transform: translate(-2px, 1px) rotate(-1deg);
-  }
-
-  20% {
-    transform: translate(2px, -1px) rotate(1deg);
-  }
-
-  30% {
-    transform: translate(-1px, 2px) rotate(0deg);
-  }
-
-  40% {
-    transform: translate(1px, -2px) rotate(1deg);
-  }
-
-  50% {
-    transform: translate(-2px, 0px) rotate(-1deg);
   }
 
   60% {
-    transform: translate(2px, 1px) rotate(0deg);
+    transform: translate(-30vw, 5vh) rotate(-110deg) scale(0.7);
+    opacity: 0.9;
   }
 
-  70% {
-    transform: translate(-1px, -1px) rotate(1deg);
-  }
-
-  80% {
-    transform: translate(1px, 2px) rotate(-1deg);
-  }
-
-  90% {
-    transform: translate(0px, -2px) rotate(0deg);
+  100% {
+    transform: translate(-50vw, 0vh) rotate(-45deg) scale(0);
+    opacity: 0;
+    filter: blur(2px);
   }
 }
 
-.animate-rocket-shake {
-  animation: rocket-shake 0.15s ease-in-out infinite;
+.animate-epic-flight {
+  animation: epic-flight-to-planet 2.5s ease-in-out forwards;
 }
 
+/* 🚀 修正版：响应式能量输送轨迹 (Logical Pipeline Delivery) */
 @keyframes energy-particle {
   0% {
+    /* 使用 left 逻辑属性从容器的最左侧（能量块边缘）开始 */
     left: 0%;
+    /* 配合 logical-shift：使用 -100% 的 horizontal-translate，让粒子在导管开始前完全蓄力 */
+    transform: translate(-100%, -50%) scale(0.5);
     opacity: 0;
   }
 
-  10% {
+  20% {
     opacity: 1;
   }
 
-  90% {
+  80% {
     opacity: 1;
   }
 
   100% {
+    /* 终点锁定在容器的最右侧（火箭尾部排气口） */
     left: 100%;
+    /* 配合 logical-shift：使用 0% 的 horizontal-translate，让粒子刚好飞抵边界，不再多余偏移 */
+    transform: translate(0%, -50%) scale(1);
     opacity: 0;
   }
 }
 
 .animate-energy-particle {
-  animation: energy-particle 1.5s linear infinite;
+  /* =========================================
+     🎯 关键：对粒子元素本身应用逻辑定位
+     确保这些光点真正处于“导管内部”
+     ========================================= */
+  position: absolute;
+  /* 确保 left 属性相对于虚线导管生效 */
+  top: 50%;
+  /* 垂直方向强制居中在导管上 */
+  /* 其他设定（速度、循环）保持不动 */
+  animation: energy-particle 2s linear infinite;
+}
+
+/* 3. 起飞前引擎震动 (Engine Shaking) */
+@keyframes rocket-shake {
+  0% {
+    transform: translate(1px, 1px) rotate(-45deg);
+  }
+
+  50% {
+    transform: translate(-1px, -1px) rotate(-46deg);
+  }
+
+  100% {
+    transform: translate(1px, -1px) rotate(-45deg);
+  }
+}
+
+.animate-rocket-shake {
+  animation: rocket-shake 0.1s ease-in-out infinite;
+}
+
+/* 4. 星空闪烁 (Twinkling Stars) */
+@keyframes twinkle {
+
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(0.8);
+    box-shadow: 0 0 2px 0px rgba(255, 255, 255, 0.1);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+    box-shadow: 0 0 10px 1px rgba(255, 255, 255, 0.6);
+  }
+}
+
+.animate-twinkle {
+  animation: twinkle linear infinite;
 }
