@@ -32,6 +32,7 @@ const GRADIENT_COLORS = [
 
 interface TaskState {
     groups: TaskGroup[];
+    setGroups: (groups: TaskGroup[]) => void;
     addTask: (groupIdx: number) => void;
     removeTask: (groupIdx: number, taskId: string) => void;
     updateTask: (groupIdx: number, taskId: string, updates: Partial<TaskItem>) => void;
@@ -77,6 +78,7 @@ export const useTaskStore = create<TaskState>()(
     persist(
         (set) => ({
             groups: INITIAL_TASK_GROUPS,
+            setGroups: (groups) => set({ groups }),
             addTask: (groupIdx) => set((state) => {
                 const next = [...state.groups];
                 const newTask: TaskItem = {
