@@ -13,6 +13,7 @@ export interface TaskItem {
 }
 
 export interface TaskGroup {
+    id?: string; // 👈 1. ADD THIS LINE (The '?' makes it optional for your legacy UI data)
     title: string;
     duration: string;
     color: string;

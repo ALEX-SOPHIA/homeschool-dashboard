@@ -7,6 +7,7 @@ import { useTimerStore } from '@/store/useTimerStore';
 import { useTaskStore } from '@/store/useTaskStore';
 
 // 1. We declare that this component expects 'initialFamilyData' (the Skywalker JSON) as a prop from the Server Component
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function DashboardClient({ initialFamilyData }: { initialFamilyData: any }) {
   const { timers, activeFocusSessionIds, setActiveFocusSessions, addTimer } = useTimerStore();
   const { start } = useConcurrentTimers();
@@ -14,14 +15,11 @@ export default function DashboardClient({ initialFamilyData }: { initialFamilyDa
   // 2. We grab our newly created Override Switch!
   const { setGroups } = useTaskStore(); 
 
-  // 3. Hydration (状态注水): The moment the page loads, we format the data and inject it.
+// 3. Hydration (状态注水): Map Students AND their Tasks
   useEffect(() => {
-    // Check if the server actually gave us data
     if (initialFamilyData && initialFamilyData.students) {
-      
-      // We map the raw Database fields to match the exact fields your UI expects
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const hydratedGroups = initialFamilyData.students.map((student: any, index: number) => {
-        // Grab a gradient color based on the index (matching your original logic)
         const gradientColors = [
             'from-violet-400 to-purple-500',
             'from-cyan-400 to-teal-500',
@@ -33,17 +31,26 @@ export default function DashboardClient({ initialFamilyData }: { initialFamilyDa
         ];
         const color = gradientColors[index % gradientColors.length];
 
+        // 👇 NEW: We map the real tasks from the database!
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const mappedTasks = student.tasks ? student.tasks.map((task: any) => ({
+          id: task.id,
+          title: task.title,
+          date: 'Today', // Placeholder (we can add real dates to the DB later)
+          status: task.status,
+          targetDuration: task.targetDuration || '30m'
+        })) : [];
+
         return {
           id: student.id,
-          title: student.name,    // Database 'name' becomes UI 'title'
-          avatar: student.avatar, // The emoji (👨‍🚀 or 👸)
-          color: color,           // The dynamic gradient
-          duration: "0h 0m",      // Default placeholder
-          tasks: []               // Empty courses for now
+          title: student.name,
+          avatar: student.avatar,
+          color: color,
+          duration: "0h 0m",
+          tasks: mappedTasks // 👈 Inject the real database tasks here!
         };
       });
       
-      // Pull the lever! Overwrite the Local Storage!
       setGroups(hydratedGroups);
     }
   }, [initialFamilyData, setGroups]);
