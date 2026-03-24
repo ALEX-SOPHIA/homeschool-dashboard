@@ -8,7 +8,8 @@ import { createCourse } from '@/app/actions';
 
 /* ── 🎨 CSS Keyframe Engine ── */
 const AnimationEngine = () => (
-    <style dangerouslySetInnerHTML={{ __html: `
+    <style dangerouslySetInnerHTML={{
+        __html: `
         @keyframes battery-sweep {
             0% { transform: translateX(-200%) skewX(-15deg); }
             100% { transform: translateX(400%) skewX(-15deg); }
@@ -88,7 +89,7 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
     return (
         <div className="bg-black p-8 rounded-xl shadow-2xl mb-8 relative overflow-hidden min-h-[220px] border border-slate-900 flex items-center justify-center">
             <AnimationEngine />
-            
+
             <div className="absolute inset-0 z-0 pointer-events-none">
                 <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900/40 via-black to-black pointer-events-none" />
                 {stars.map((star, i) => (
@@ -108,28 +109,28 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
                 {launchStatus === 'idle' || launchStatus === 'shaking' ? (
                     <div className="flex items-center flex-1 gap-12 animate-in fade-in duration-500">
                         <div className="flex flex-col gap-5 shrink-0">
-                            
+
                             <div className="flex flex-col gap-3">
                                 <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
                                     <span className="text-xs font-black tracking-[0.25em] text-emerald-800 uppercase">Energy Core</span>
                                 </div>
-                                
+
                                 <div className="flex items-center gap-6">
                                     <div className="flex gap-1.5 relative overflow-hidden p-1 bg-slate-900/50 rounded-lg border border-slate-800">
-                                        <div 
-                                            className="absolute top-0 bottom-0 w-8 bg-gradient-to-r from-transparent via-white/30 to-transparent z-20 pointer-events-none" 
-                                            style={{ animation: 'battery-sweep 2.5s ease-in-out infinite' }} 
+                                        <div
+                                            className="absolute top-0 bottom-0 w-8 bg-gradient-to-r from-transparent via-white/30 to-transparent z-20 pointer-events-none"
+                                            style={{ animation: 'battery-sweep 2.5s ease-in-out infinite' }}
                                         />
-                                        
+
                                         {[...Array(5)].map((_, i) => (
-                                            <div 
-                                                key={i} 
-                                                className={`w-8 h-6 rounded-[4px] transition-all duration-700 z-10 ${percentage > (i * 20) ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]' : 'bg-slate-800/80 border border-slate-700'}`} 
+                                            <div
+                                                key={i}
+                                                className={`w-8 h-6 rounded-[4px] transition-all duration-700 z-10 ${percentage > (i * 20) ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]' : 'bg-slate-800/80 border border-slate-700'}`}
                                             />
                                         ))}
                                     </div>
-                                    
+
                                     <div className="flex items-end gap-2">
                                         <span className="text-3xl font-black text-white italic tracking-tighter leading-none">{Math.round(percentage)}%</span>
                                         <span className="text-slate-500 text-sm uppercase tracking-wider pb-0.5">/ 100% Complete</span>
@@ -147,21 +148,21 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
 
                 <div className={`shrink-0 z-10 ${launchStatus === 'liftoff' ? 'animate-epic-flight' : launchStatus === 'shaking' ? 'animate-rocket-shake rotate-[-45deg]' : 'rotate-[-45deg] transition-all duration-300'}`}>
                     <div className="relative w-32 h-32 flex items-center justify-center">
-                        
+
                         {/* 🔥 FIX: Translated flame coordinates up and right towards the center nozzle */}
                         <div className="absolute inset-0 z-0">
                             {/* Outer Core */}
-                            <div 
+                            <div
                                 className="absolute -bottom-10 left-11 w-10 h-14 bg-orange-600 rounded-full blur-[10px] mix-blend-screen origin-center"
-                                style={{ animation: 'flame-outer 0.12s infinite alternate' }} 
+                                style={{ animation: 'flame-outer 0.12s infinite alternate' }}
                             />
                             {/* Inner Core */}
-                            <div 
+                            <div
                                 className="absolute -bottom-2 left-13 w-6 h-10 bg-yellow-200 rounded-full blur-[4px] mix-blend-screen origin-center"
-                                style={{ animation: 'flame-inner 0.06s infinite alternate' }} 
+                                style={{ animation: 'flame-inner 0.06s infinite alternate' }}
                             />
                         </div>
-                        
+
                         <ColdRocket className="absolute inset-0 w-full h-full drop-shadow-[0_20px_30px_rgba(0,0,0,1)] z-10 relative" />
                     </div>
                 </div>
@@ -175,10 +176,10 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
 export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks: any[]) => void }) {
     const { groups, addGroup, completeTask, updateGroup, updateTask, removeTask, undoTask } = useTaskStore();
     const [isHydrated, setIsHydrated] = useState(false);
-    
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [selected, setSelected] = useState<Map<string, any>>(new Map());
-    
+
     const [editing, setEditing] = useState<{ id: string; field: 'title' | 'targetDuration' } | null>(null);
     const [groupEditing, setGroupEditing] = useState<number | null>(null);
 
@@ -267,7 +268,7 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                             )}
                                             <div className="text-xs text-white/80 mt-0.5">{group.duration} scheduled</div>
                                         </div>
-                                        
+
                                         <div className="text-xl font-black opacity-90 tracking-tighter shrink-0 pl-2">
                                             {completedCourses}/{totalCourses}
                                         </div>
@@ -281,15 +282,14 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                     {group.tasks.map((task) => (
                                         <div
                                             key={task.id}
-                                            className={`group relative rounded-xl p-4 border transition-all ${
-                                                task.status === 'completed' ? 'bg-slate-50 border-slate-200/60' :
-                                                selected.has(task.id) ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-slate-100 hover:border-blue-200/50 hover:shadow-md hover:shadow-blue-500/5'
-                                            }`}
+                                            className={`group relative rounded-xl p-4 border transition-all ${task.status === 'completed' ? 'bg-slate-50 border-slate-200/60' :
+                                                    selected.has(task.id) ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-slate-100 hover:border-blue-200/50 hover:shadow-md hover:shadow-blue-500/5'
+                                                }`}
                                         >
                                             {/* 🗑️ FIX: Absolute Positioned Trash Button in the top-right corner */}
                                             <button
                                                 onClick={() => removeTask(groupIdx, task.id)}
-                                                className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all p-1.5 hover:bg-red-50 rounded-md z-10"
+                                                className="absolute top-0 right-1 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all p-1.5 hover:bg-red-50 rounded-md z-10"
                                             >
                                                 <Trash2 size={15} />
                                             </button>
@@ -303,10 +303,9 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                             toggle(task.id, task.title, group.title, task.targetDuration);
                                                         }
                                                     }}
-                                                    className={`shrink-0 transition-colors ${
-                                                        task.status === 'completed' ? 'text-emerald-500' :
-                                                        selected.has(task.id) ? 'text-blue-500' : 'text-slate-200 hover:text-blue-400'
-                                                    }`}
+                                                    className={`shrink-0 transition-colors ${task.status === 'completed' ? 'text-emerald-500' :
+                                                            selected.has(task.id) ? 'text-blue-500' : 'text-slate-200 hover:text-blue-400'
+                                                        }`}
                                                 >
                                                     {task.status === 'completed' || selected.has(task.id) ?
                                                         <CheckCircle2 size={22} className={task.status === 'completed' ? '' : 'fill-blue-50'} /> :
@@ -315,11 +314,11 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                 </button>
 
                                                 {/* FIX: Ensure min-w-0 and truncate so text doesn't push the button out */}
-                                                <div className="flex-1 min-w-0 pr-2">
+                                                <div className="flex-1 min-w-0">
                                                     {editing?.id === task.id && editing.field === 'title' ? (
                                                         <input
                                                             autoFocus
-                                                            className="w-full text-sm font-semibold text-slate-700 outline-none border-b border-blue-500 bg-transparent"
+                                                            className={`w-full ${task.title.length > 16 ? 'text-sm' : 'text-base'} font-semibold text-slate-700 outline-none border-b border-blue-500 bg-transparent`}
                                                             defaultValue={task.title}
                                                             onBlur={(e) => {
                                                                 updateTask(groupIdx, task.id, { title: e.target.value });
@@ -335,9 +334,9 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                     ) : (
                                                         <div
                                                             onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'title' })}
-                                                            className={`text-sm font-semibold truncate transition-colors cursor-text hover:text-blue-600 ${
-                                                                task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'
-                                                            }`}
+                                                            /* 👇 2. Dynamic font size, Line Clamping (max 2 lines), and Break Words */
+                                                            className={`${task.title.length > 16 ? 'text-sm' : 'text-sm'} font-semibold line-clamp-2 break-words transition-colors cursor-text hover:text-blue-600 ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'
+                                                                }`}
                                                         >
                                                             {task.title}
                                                         </div>
@@ -351,9 +350,9 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                         onClick={() => {
                                                             if (onStartTasks) onStartTasks([{ id: task.id, title: task.title, subject: group.title, targetDuration: task.targetDuration }]);
                                                         }}
-                                                        className="shrink-0 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm shadow-blue-500/20 transition-all flex items-center gap-1.5 relative z-10"
+                                                        className="shrink-0 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold px-1 py-1 rounded-md shadow-sm shadow-blue-500/20 transition-all flex items-center gap-1 relative z-10"
                                                     >
-                                                        <PlayCircle size={14} />Start
+                                                        <PlayCircle size={10} />Start
                                                     </button>
                                                 )}
                                             </div>
