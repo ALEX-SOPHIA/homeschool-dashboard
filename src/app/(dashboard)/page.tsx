@@ -9,6 +9,10 @@ export default async function DashboardPage() {
         include: {
           /* 👇 MODIFICATION: Tell Prisma to sort by creation date ascending */
           tasks: {
+            // 👇 MODIFICATION: Only fetch tasks that are NOT archived!
+            where: {
+              status: { not: 'archived' }
+            },
             orderBy: {
               id: 'asc'
             }

@@ -5,6 +5,7 @@ import { CheckCircle2, PlayCircle, Plus, Circle, UserPlus, Trash2 } from 'lucide
 import { useTaskStore } from '@/store/useTaskStore';
 import { ColdRocket } from './ColdRocket';
 import { createCourse, deleteCourse, updateCourse, updateStudent, createStudent, updateTaskStatus, updateTaskDuration } from '@/app/actions';
+import { archiveCompletedTasks } from '@/app/actions';
 /* ── 🎨 CSS Keyframe Engine ── */
 const AnimationEngine = () => (
     <style dangerouslySetInnerHTML={{
@@ -39,8 +40,8 @@ const ProceduralPlanet = () => (
 interface StarData { size: number; top: number; left: number; delay: number; duration: number; }
 
 /* ── 子组件：电影级火箭发射台 ── */
-function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
-    totalTasks: number; completedTasks: number; percentage: number;
+function RocketLaunchpad({ totalTasks, completedTasks, percentage, onClearTasks }: {
+    totalTasks: number; completedTasks: number; percentage: number; onClearTasks: () => void;
 }) {
     const [launchStatus, setLaunchStatus] = useState<'idle' | 'shaking' | 'liftoff' | 'completed'>('idle');
     const [stars, setStars] = useState<StarData[]>([]);
@@ -80,6 +81,16 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
                     <h3 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-emerald-400 to-indigo-400 tracking-tighter uppercase italic">
                         MISSION COMPLETE 🚀
                     </h3>
+                    {/* 👇 MODIFICATION: The Reset Button */}
+                    <button
+                        onClick={() => {
+                            setLaunchStatus('idle');
+                            onClearTasks();
+                        }}
+                        className="mt-6 px-8 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-full text-white font-bold tracking-widest uppercase transition-all hover:scale-105 active:scale-95"
+                    >
+                        Prepare Next Mission
+                    </button>
                 </div>
             </div>
         );
@@ -232,7 +243,24 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
     return (
         <div className="flex-1 bg-[#f7f8fa] flex flex-col overflow-hidden h-[calc(100vh-64px)] relative">
             <div className="shrink-0 px-8 pt-8 pb-5">
-                <RocketLaunchpad totalTasks={totalTasks} completedTasks={completedTasks} percentage={percentage} />
+                <RocketLaunchpad
+                    totalTasks={totalTasks}
+                    completedTasks={completedTasks}
+                    percentage={percentage}
+                    onClearTasks={() => {
+                        // 1. Optimistic Local Clear: Remove completed tasks instantly from the UI
+                        groups.forEach((g, gIdx) => {
+                            g.tasks.forEach(t => {
+                                if (t.status === 'completed') removeTask(gIdx, t.id);
+                            });
+                        });
+
+                        // 2. Fire-and-Forget Database Sync: Archive them in Postgres
+                        archiveCompletedTasks()
+                            .then(res => { if (!res.success) throw new Error("DB Error"); })
+                            .catch(() => alert("Failed to archive tasks to the cloud."));
+                    }}
+                />
             </div>
 
             <div className="flex-1 overflow-y-auto px-8 pb-8 scroll-smooth">

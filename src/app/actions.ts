@@ -153,3 +153,20 @@ export async function updateTaskDuration(taskId: string, newDuration: string) {
     return { success: false, error: "Failed to update duration in database" };
   }
 }
+
+export async function archiveCompletedTasks() {
+  try {
+    // 1. Tell Prisma to change all 'completed' tasks to 'archived'
+    await prisma.task.updateMany({
+      where: { status: 'completed' },
+      data: { status: 'archived' }
+    });
+
+    // 2. Purge the cache so the dashboard refreshes clean
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error("Error archiving tasks:", error);
+    return { success: false, error: "Failed to archive tasks in database" };
+  }
+}
