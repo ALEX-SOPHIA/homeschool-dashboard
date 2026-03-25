@@ -3,6 +3,7 @@ import { TimerSession, useTimerStore } from '@/store/useTimerStore';
 import { useTaskStore } from '@/store/useTaskStore';
 import { motion, useAnimationFrame, useMotionValue, useTransform } from 'framer-motion';
 import { Play, Pause, Trash2, CheckCircle2, Minimize2, User } from 'lucide-react';
+import { updateTaskStatus } from '@/app/actions';
 
 interface TimerFullscreenModalProps {
     sessions: TimerSession[];
@@ -55,8 +56,15 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
     const handleComplete = () => {
         // ID is stored as `session-${taskId}` in page.tsx
         const taskId = session.id.replace('session-', '');
+
+        // 1. Optimistic Local Update
         completeTask(taskId);
         remove(session.id);
+
+        // 2. Fire-and-Forget Database Sync
+        updateTaskStatus(taskId, 'completed')
+            .then(res => { if (!res.success) throw new Error("DB Error"); })
+            .catch(() => alert("Failed to save completion status to the cloud."));
     };
 
     useAnimationFrame(() => {
@@ -155,7 +163,7 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
                     <div className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none">
                         <div
                             className="font-bold tracking-[0.05em] tabular-nums text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.2)] leading-none text-center"
-                            style={{ 
+                            style={{
                                 fontFamily: 'var(--font-share-tech-mono), monospace',
                                 fontSize: isMulti ? 'min(11vw, 90px)' : 'min(17vw, 155px)',
                             }}

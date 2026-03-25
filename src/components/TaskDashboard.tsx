@@ -4,8 +4,7 @@ import { useState, useEffect } from 'react';
 import { CheckCircle2, PlayCircle, Plus, Circle, UserPlus, Trash2 } from 'lucide-react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { ColdRocket } from './ColdRocket';
-import { createCourse } from '@/app/actions';
-
+import { createCourse, deleteCourse, updateCourse, updateStudent, createStudent, updateTaskStatus, updateTaskDuration } from '@/app/actions';
 /* ── 🎨 CSS Keyframe Engine ── */
 const AnimationEngine = () => (
     <style dangerouslySetInnerHTML={{
@@ -123,12 +122,16 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage }: {
                                             style={{ animation: 'battery-sweep 2.5s ease-in-out infinite' }}
                                         />
 
-                                        {[...Array(5)].map((_, i) => (
-                                            <div
-                                                key={i}
-                                                className={`w-8 h-6 rounded-[4px] transition-all duration-700 z-10 ${percentage > (i * 20) ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]' : 'bg-slate-800/80 border border-slate-700'}`}
-                                            />
-                                        ))}
+                                        {/* 👇 MODIFICATION: Dynamic length based on total courses! */}
+                                        {[...Array(totalTasks)].map((_, i) => {
+                                            const isLit = i < completedTasks;
+                                            return (
+                                                <div
+                                                    key={i}
+                                                    className={`w-8 h-6 rounded-[4px] transition-all duration-700 z-10 ${isLit ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]' : 'bg-slate-800/80 border border-slate-700'}`}
+                                                />
+                                            );
+                                        })}
                                     </div>
 
                                     <div className="flex items-end gap-2">
@@ -212,7 +215,17 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
     };
 
     const completeSelected = () => {
-        Array.from(selected.keys()).forEach(taskId => completeTask(taskId));
+        // 1. Loop through every selected task
+        Array.from(selected.keys()).forEach(taskId => {
+            // 2. Optimistic Local Update
+            completeTask(taskId);
+
+            // 3. Fire-and-Forget Database Sync
+            updateTaskStatus(taskId, 'completed')
+                .then(res => { if (!res.success) throw new Error("DB Error"); })
+                .catch(() => alert("Failed to save completion status to the cloud."));
+        });
+
         setSelected(new Map());
     };
 
@@ -248,13 +261,33 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                     className="w-full bg-black/20 text-white placeholder-white/50 border-none outline-none rounded px-1 -ml-1 font-bold text-base"
                                                     defaultValue={group.title}
                                                     onBlur={(e) => {
-                                                        updateGroup(groupIdx, { title: e.target.value });
+                                                        const newName = e.target.value;
+
+                                                        // 1. Optimistic Local Update
+                                                        updateGroup(groupIdx, { title: newName });
                                                         setGroupEditing(null);
+
+                                                        // 2. Fire-and-Forget Database Sync
+                                                        const studentId = group.id; // Grab the real DB ID
+                                                        if (!studentId) return; // 👈 TYPE NARROWING: Protects against undefined!
+                                                        updateStudent(studentId, newName)
+                                                            .then(res => { if (!res.success) throw new Error("DB Error"); })
+                                                            .catch(() => alert("Failed to save child's name to the cloud."));
                                                     }}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter') {
-                                                            updateGroup(groupIdx, { title: e.currentTarget.value });
+                                                            const newName = e.currentTarget.value;
+
+                                                            // 1. Optimistic Local Update
+                                                            updateGroup(groupIdx, { title: newName });
                                                             setGroupEditing(null);
+
+                                                            // 2. Fire-and-Forget Database Sync
+                                                            const studentId = group.id;
+                                                            if (!studentId) return; // 👈 TYPE NARROWING
+                                                            updateStudent(studentId, newName)
+                                                                .then(res => { if (!res.success) throw new Error("DB Error"); })
+                                                                .catch(() => alert("Failed to save child's name to the cloud."));
                                                         }
                                                     }}
                                                 />
@@ -283,13 +316,36 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                         <div
                                             key={task.id}
                                             className={`group relative rounded-xl p-4 border transition-all ${task.status === 'completed' ? 'bg-slate-50 border-slate-200/60' :
-                                                    selected.has(task.id) ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-slate-100 hover:border-blue-200/50 hover:shadow-md hover:shadow-blue-500/5'
+                                                selected.has(task.id) ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-slate-100 hover:border-blue-200/50 hover:shadow-md hover:shadow-blue-500/5'
                                                 }`}
                                         >
-                                            {/* 🗑️ FIX: Absolute Positioned Trash Button in the top-right corner */}
+                                            {/* 🗑️ The Production-Grade Optimistic Trash Button */}
                                             <button
-                                                onClick={() => removeTask(groupIdx, task.id)}
-                                                className="absolute top-0 right-1 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all p-1.5 hover:bg-red-50 rounded-md z-10"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    e.stopPropagation();
+
+                                                    // 1. Optimistic Update: Instantly remove it from the screen
+                                                    removeTask(groupIdx, task.id);
+
+                                                    // 2. Fire-and-Forget Network Request (Notice there is NO 'await' here!)
+                                                    // The request leaves the browser instantly, surviving the component's unmount.
+                                                    deleteCourse(task.id)
+                                                        .then((result) => {
+                                                            if (!result.success) {
+                                                                throw new Error("Server explicitly rejected the deletion");
+                                                            }
+                                                        })
+                                                        .catch((error) => {
+                                                            // 3. The Rollback (回滚): If the network fails, put the UI back the way it was!
+                                                            console.error("Optimistic update failed, rolling back:", error);
+
+                                                            // (Note: To make this perfect, your Zustand store should technically have a 
+                                                            // 'restoreTask' method, but for now we can alert the user that state is out of sync)
+                                                            alert("Network error: Failed to delete course. Your screen is out of sync, please refresh.");
+                                                        });
+                                                }}
+                                                className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all p-1.5 hover:bg-red-50 rounded-md z-10"
                                             >
                                                 <Trash2 size={15} />
                                             </button>
@@ -298,13 +354,19 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                 <button
                                                     onClick={() => {
                                                         if (task.status === 'completed') {
+                                                            // 1. Optimistic Local Update
                                                             undoTask(task.id);
+
+                                                            // 2. Fire-and-Forget Database Sync
+                                                            updateTaskStatus(task.id, 'pending')
+                                                                .then(res => { if (!res.success) throw new Error("DB Error"); })
+                                                                .catch(() => alert("Failed to undo task status."));
                                                         } else {
                                                             toggle(task.id, task.title, group.title, task.targetDuration);
                                                         }
                                                     }}
                                                     className={`shrink-0 transition-colors ${task.status === 'completed' ? 'text-emerald-500' :
-                                                            selected.has(task.id) ? 'text-blue-500' : 'text-slate-200 hover:text-blue-400'
+                                                        selected.has(task.id) ? 'text-blue-500' : 'text-slate-200 hover:text-blue-400'
                                                         }`}
                                                 >
                                                     {task.status === 'completed' || selected.has(task.id) ?
@@ -318,16 +380,32 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                     {editing?.id === task.id && editing.field === 'title' ? (
                                                         <input
                                                             autoFocus
-                                                            className={`w-full ${task.title.length > 16 ? 'text-sm' : 'text-base'} font-semibold text-slate-700 outline-none border-b border-blue-500 bg-transparent`}
+                                                            className={`w-full text-sm font-semibold text-slate-700 outline-none border-b border-blue-500 bg-transparent`}
                                                             defaultValue={task.title}
                                                             onBlur={(e) => {
-                                                                updateTask(groupIdx, task.id, { title: e.target.value });
+                                                                const newTitle = e.target.value;
+
+                                                                // 1. Optimistic Local Update
+                                                                updateTask(groupIdx, task.id, { title: newTitle });
                                                                 setEditing(null);
+
+                                                                // 2. Fire-and-Forget Database Sync (Fixes unused variable warning)
+                                                                updateCourse(task.id, newTitle)
+                                                                    .then((res) => { if (!res.success) throw new Error("DB Error"); })
+                                                                    .catch(() => alert("Failed to save the new name to the cloud."));
                                                             }}
                                                             onKeyDown={(e) => {
                                                                 if (e.key === 'Enter') {
-                                                                    updateTask(groupIdx, task.id, { title: e.currentTarget.value });
+                                                                    const newTitle = e.currentTarget.value;
+
+                                                                    // 1. Optimistic Local Update
+                                                                    updateTask(groupIdx, task.id, { title: newTitle });
                                                                     setEditing(null);
+
+                                                                    // 2. Fire-and-Forget Database Sync
+                                                                    updateCourse(task.id, newTitle)
+                                                                        .then((res) => { if (!res.success) throw new Error("DB Error"); })
+                                                                        .catch(() => alert("Failed to save the new name to the cloud."));
                                                                 }
                                                             }}
                                                         />
@@ -335,13 +413,54 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                         <div
                                                             onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'title' })}
                                                             /* 👇 2. Dynamic font size, Line Clamping (max 2 lines), and Break Words */
-                                                            className={`${task.title.length > 16 ? 'text-sm' : 'text-sm'} font-semibold line-clamp-2 break-words transition-colors cursor-text hover:text-blue-600 ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'
+                                                            className={`text-sm font-semibold line-clamp-2 break-words transition-colors cursor-text hover:text-blue-600 ${task.status === 'completed' ? 'text-slate-400 line-through' : 'text-slate-700'
                                                                 }`}
                                                         >
                                                             {task.title}
                                                         </div>
                                                     )}
-                                                    <div className="text-xs text-slate-400 mt-1 font-medium">{task.targetDuration}</div>
+                                                    {/* ⏱️ Dynamic Duration Editor */}
+                                                    {editing?.id === task.id && editing.field === 'targetDuration' ? (
+                                                        <input
+                                                            autoFocus
+                                                            className="w-16 text-xs text-slate-700 font-bold outline-none border-b border-blue-500 bg-transparent mt-1"
+                                                            defaultValue={task.targetDuration}
+                                                            onBlur={(e) => {
+                                                                const newDuration = e.target.value;
+
+                                                                // 1. Optimistic Local Update
+                                                                updateTask(groupIdx, task.id, { targetDuration: newDuration });
+                                                                setEditing(null);
+
+                                                                // 2. Fire-and-Forget Database Sync
+                                                                updateTaskDuration(task.id, newDuration)
+                                                                    .then(res => { if (!res.success) throw new Error("DB Error"); })
+                                                                    .catch(() => alert("Failed to save duration."));
+                                                            }}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') {
+                                                                    const newDuration = e.currentTarget.value;
+
+                                                                    // 1. Optimistic Local Update
+                                                                    updateTask(groupIdx, task.id, { targetDuration: newDuration });
+                                                                    setEditing(null);
+
+                                                                    // 2. Fire-and-Forget Database Sync
+                                                                    updateTaskDuration(task.id, newDuration)
+                                                                        .then(res => { if (!res.success) throw new Error("DB Error"); })
+                                                                        .catch(() => alert("Failed to save duration."));
+                                                                }
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <div
+                                                            onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'targetDuration' })}
+                                                            className={`text-xs mt-1 font-medium transition-colors ${task.status === 'completed' ? 'text-slate-400' : 'text-slate-400 hover:text-blue-500 cursor-text'
+                                                                }`}
+                                                        >
+                                                            {task.targetDuration}
+                                                        </div>
+                                                    )}
                                                 </div>
 
                                                 {/* Start Button stays perfectly right-aligned */}
@@ -385,7 +504,20 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                         );
                     })}
 
-                    <div className="h-[200px] flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 hover:bg-slate-100/50 transition-all cursor-pointer group/add-child" onClick={addGroup}>
+
+                    <div
+                        className="h-[200px] flex flex-col items-center justify-center p-8 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 hover:bg-slate-100/50 transition-all cursor-pointer group/add-child"
+                        onClick={async () => {
+                            // 1. Tell the database to create the child
+                            const result = await createStudent();
+
+                            if (!result.success) {
+                                alert("Database error: Failed to create child.");
+                            } else {
+                                console.log("Child created in cloud! Next.js will auto-refresh the UI.");
+                            }
+                        }}
+                    >
                         <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-slate-400 group-hover/add-child:text-blue-500 transition-all">
                             <UserPlus size={24} />
                         </div>
