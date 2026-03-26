@@ -519,37 +519,8 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                     )}
                                                     {/* ⏱️ Dynamic Duration Editor */}
                                                     {/* 🏷️ FLEX CONTAINER: Subject Badge + Duration */}
+                                                    {/* ✅ PASTE THIS CLEAN VERSION: */}
                                                     <div className="flex items-center gap-3 mt-1.5">
-
-                                                        {/* 1. THE NEW SUBJECT EDITOR */}
-                                                        {editing?.id === task.id && editing.field === 'subject' ? (
-                                                            <input
-                                                                autoFocus
-                                                                className="w-20 text-[10px] text-emerald-600 font-bold outline-none border-b border-emerald-500 bg-transparent uppercase tracking-wider"
-                                                                defaultValue={task.subject || 'General'}
-                                                                onBlur={(e) => {
-                                                                    const newSubject = e.target.value || 'General';
-                                                                    updateTask(groupIdx, task.id, { subject: newSubject });
-                                                                    setEditing(null);
-                                                                    updateTaskSubject(task.id, newSubject);
-                                                                }}
-                                                                onKeyDown={(e) => {
-                                                                    if (e.key === 'Enter') e.currentTarget.blur();
-                                                                }}
-                                                            />
-                                                        ) : (
-                                                            <div
-                                                                onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'subject' })}
-                                                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-colors uppercase tracking-wider ${task.status === 'completed'
-                                                                    ? 'bg-slate-100 text-slate-400'
-                                                                    : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 cursor-text'
-                                                                    }`}
-                                                            >
-                                                                {task.subject || 'General'}
-                                                            </div>
-                                                        )}
-
-                                                        {/* 2. YOUR EXISTING DURATION EDITOR */}
                                                         {editing?.id === task.id && editing.field === 'targetDuration' ? (
                                                             <input
                                                                 autoFocus
@@ -570,8 +541,7 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                         ) : (
                                                             <div
                                                                 onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'targetDuration' })}
-                                                                className={`text-xs font-medium transition-colors ${task.status === 'completed' ? 'text-slate-400' : 'text-slate-400 hover:text-blue-500 cursor-text'
-                                                                    }`}
+                                                                className={`text-xs font-medium transition-colors ${task.status === 'completed' ? 'text-slate-400' : 'text-slate-400 hover:text-blue-500 cursor-text'}`}
                                                             >
                                                                 {task.targetDuration}
                                                             </div>

@@ -201,3 +201,114 @@ export async function updateTaskSubject(taskId: string, newSubject: string) {
     return { success: false, error: "Failed to update subject in database" };
   }
 }
+
+// ==========================================
+// 🚀 EPIC 2: THE TEMPLATE ENGINE ACTIONS
+// ==========================================
+
+export async function createCourseTemplate(
+  studentId: string, 
+  data: { title: string; subject: string; color: string; defaultDuration: number }
+) {
+  try {
+    const newTemplate = await prisma.courseTemplate.create({
+      data: {
+        studentId: studentId,
+        title: data.title,
+        subject: data.subject,
+        color: data.color,
+        defaultDuration: data.defaultDuration
+      }
+    });
+
+    revalidatePath('/');
+    return { success: true, template: newTemplate };
+  } catch (error) {
+    console.error("Error creating course template:", error);
+    return { success: false, error: "Failed to create course template in database" };
+  }
+}
+
+// 🪄 THE MAGIC FUNCTION: Turns a "Template" into a "Daily Task"
+export async function spawnTaskFromTemplate(
+  studentId: string, 
+  template: { title: string; subject: string; defaultDuration: number }
+) {
+  try {
+    const newTask = await prisma.task.create({
+      data: {
+        studentId: studentId,
+        title: template.title,
+        subject: template.subject,       // 👈 Hidden from user, but saved to DB!
+        targetDuration: template.defaultDuration, // Convert Int back to string for your UI
+        status: 'pending',
+      }
+    });
+
+    revalidatePath('/');
+    return { success: true, task: newTask };
+  } catch (error) {
+    console.error("Error spawning task:", error);
+    return { success: false, error: "Failed to spawn daily task" };
+  }
+}
+
+// 🔍 获取所有预设课程胶囊
+export async function fetchAllTemplates() {
+  try {
+    const templates = await prisma.courseTemplate.findMany();
+    return { success: true, templates };
+  } catch (error) {
+    console.error("Error fetching templates:", error);
+    return { success: false, templates: [] };
+  }
+}
+
+// ==========================================
+// 🗑️ EPIC 2: TEARDOWN (DELETE ACTIONS)
+// ==========================================
+
+export async function deleteStudent(studentId: string) {
+  try {
+    // Thanks to onDelete: Cascade in Prisma, this single line will also 
+    // automatically wipe out all their tasks and course templates!
+    await prisma.student.delete({
+      where: { id: studentId }
+    });
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting student:", error);
+    return { success: false, error: "Failed to delete student" };
+  }
+}
+
+export async function deleteCourseTemplate(templateId: string) {
+  try {
+    await prisma.courseTemplate.delete({
+      where: { id: templateId }
+    });
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting template:", error);
+    return { success: false, error: "Failed to delete template" };
+  }
+}
+
+// ==========================================
+// ✏️ EPIC 2: UPDATE TEMPLATES (Name & Color)
+// ==========================================
+export async function updateCourseTemplate(templateId: string, updates: { title?: string; color?: string }) {
+  try {
+    await prisma.courseTemplate.update({
+      where: { id: templateId },
+      data: updates
+    });
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating template:", error);
+    return { success: false, error: "Failed to update template" };
+  }
+}

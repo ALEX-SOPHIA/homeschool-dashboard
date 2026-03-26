@@ -60,7 +60,7 @@ export default function AnalyticsDashboard({ data }: AnalyticsProps) {
                                 </div>
                             ) : (
                                 <div className="flex flex-col lg:flex-row items-center gap-8 w-full">
-                                    
+
                                     {/* 🍩 LEFT SIDE: The Hollow Donut Chart */}
                                     <div className="relative w-full lg:w-[45%] h-[280px] shrink-0">
                                         <ResponsiveContainer width="100%" height="100%">
@@ -80,7 +80,8 @@ export default function AnalyticsDashboard({ data }: AnalyticsProps) {
                                                     ))}
                                                 </Pie>
                                                 <Tooltip
-                                                    formatter={(value: number) => [formatTime(value), 'Time Spent']}
+                                                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                                                    formatter={(value: any) => [formatTime(value), 'Time Spent']}
                                                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
                                                 />
                                             </PieChart>
@@ -135,7 +136,8 @@ export default function AnalyticsDashboard({ data }: AnalyticsProps) {
             </div>
 
             {/* Global CSS for the custom scrollbar in the legend */}
-            <style dangerouslySetInnerHTML={{__html: `
+            <style dangerouslySetInnerHTML={{
+                __html: `
                 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
                 .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }

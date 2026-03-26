@@ -14,7 +14,7 @@ export interface TaskItem {
 }
 
 export interface TaskGroup {
-    id?: string; // 👈 1. ADD THIS LINE (The '?' makes it optional for your legacy UI data)
+    id: string;
     title: string;
     duration: string;
     color: string;
@@ -35,7 +35,7 @@ const GRADIENT_COLORS = [
 interface TaskState {
     groups: TaskGroup[];
     setGroups: (groups: TaskGroup[]) => void;
-    addTask: (groupIdx: number) => void;
+    addTask: (groupIdx: number, customTask?: TaskItem) => void;
     removeTask: (groupIdx: number, taskId: string) => void;
     updateTask: (groupIdx: number, taskId: string, updates: Partial<TaskItem>) => void;
     updateGroup: (groupIdx: number, updates: Partial<Omit<TaskGroup, 'tasks'>>) => void;
@@ -47,6 +47,7 @@ interface TaskState {
 
 const INITIAL_TASK_GROUPS: TaskGroup[] = [
     {
+        id: "dummy-jessy-id-123", // 👈 Just add a fake string ID to fix the legacy data
         title: 'Jessy',
         duration: '3h',
         color: 'from-violet-400 to-purple-500',
@@ -57,6 +58,7 @@ const INITIAL_TASK_GROUPS: TaskGroup[] = [
         ]
     },
     {
+        id: "dummy-joanna-id-123", // 👈 Just add a fake string ID to fix the legacy data
         title: 'Joanna',
         duration: '1h 30m',
         color: 'from-cyan-400 to-teal-500',
@@ -66,6 +68,7 @@ const INITIAL_TASK_GROUPS: TaskGroup[] = [
         ]
     },
     {
+        id: "dummy-josephine-id-123", // 👈 Just add a fake string ID to fix the legacy data
         title: 'Josephine',
         duration: '1h',
         color: 'from-rose-400 to-pink-500',
@@ -81,15 +84,19 @@ export const useTaskStore = create<TaskState>()(
         (set) => ({
             groups: INITIAL_TASK_GROUPS,
             setGroups: (groups) => set({ groups }),
-            addTask: (groupIdx) => set((state) => {
+            // ✅ REPLACE WITH THIS NEW BLOCK:
+            addTask: (groupIdx, customTask) => set((state) => {
                 const next = [...state.groups];
-                const newTask: TaskItem = {
+
+                // Use the custom capsule data if provided, otherwise create a blank task
+                const newTask: TaskItem = customTask ? customTask : {
                     id: Math.random().toString(36).substr(2, 9),
                     title: 'New Course',
                     date: 'Today',
                     status: 'pending',
-                    targetDuration: '30m'
+                    targetDuration: '30'
                 };
+
                 next[groupIdx] = {
                     ...next[groupIdx],
                     tasks: [...next[groupIdx].tasks, newTask]
@@ -120,6 +127,7 @@ export const useTaskStore = create<TaskState>()(
             addGroup: () => set((state) => {
                 const colorIdx = state.groups.length % GRADIENT_COLORS.length;
                 const newGroup: TaskGroup = {
+                    id: `temp-child-${Date.now()}`,
                     title: 'New Child',
                     duration: '0m',
                     color: GRADIENT_COLORS[colorIdx],
@@ -133,7 +141,7 @@ export const useTaskStore = create<TaskState>()(
             completeTask: (taskId) => set((state) => {
                 const next = state.groups.map(group => ({
                     ...group,
-                    tasks: group.tasks.map(task => 
+                    tasks: group.tasks.map(task =>
                         task.id === taskId ? { ...task, status: 'completed' as TaskStatus } : task
                     )
                 }));
@@ -142,7 +150,7 @@ export const useTaskStore = create<TaskState>()(
             undoTask: (taskId) => set((state) => {
                 const next = state.groups.map(group => ({
                     ...group,
-                    tasks: group.tasks.map(task => 
+                    tasks: group.tasks.map(task =>
                         task.id === taskId ? { ...task, status: 'pending' as TaskStatus } : task
                     )
                 }));
