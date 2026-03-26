@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CheckCircle2, PlayCircle, Plus, Circle, UserPlus, Trash2 } from 'lucide-react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { ColdRocket } from './ColdRocket';
-import { createCourse, deleteCourse, updateCourse, updateStudent, createStudent, updateTaskStatus, updateTaskDuration } from '@/app/actions';
+import { createCourse, deleteCourse, updateCourse, updateStudent, createStudent, updateTaskStatus, updateTaskDuration, updateStudentAvatar } from '@/app/actions';
 import { archiveCompletedTasks } from '@/app/actions';
+import { supabase } from '@/lib/supabase';
 /* ── 🎨 CSS Keyframe Engine ── */
 const AnimationEngine = () => (
     <style dangerouslySetInnerHTML={{
@@ -196,6 +197,7 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
 
     const [editing, setEditing] = useState<{ id: string; field: 'title' | 'targetDuration' } | null>(null);
     const [groupEditing, setGroupEditing] = useState<number | null>(null);
+    const [avatarEditing, setAvatarEditing] = useState<number | null>(null);
 
     useEffect(() => {
         const hydrationTimer = setTimeout(() => setIsHydrated(true), 0);
@@ -273,14 +275,75 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                         return (
                             <div key={groupIdx} className="w-[300px] shrink-0 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden group/column">
                                 <div className={`relative bg-gradient-to-r ${group.color} p-4 text-white`}>
+                                    {/* 👇 MODIFICATION: Hidden File Input with Unique ID */}
+                                    <input
+                                        id={`avatar-upload-${group.id}`}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+
+                                            try {
+                                                // 1. Generate a safe, unique filename (e.g., "123-170456789.jpg")
+                                                const fileExt = file.name.split('.').pop();
+                                                const fileName = `${group.id}-${Date.now()}.${fileExt}`;
+
+                                                // 2. Upload directly from the Browser to the Supabase Bucket
+                                                const { error: uploadError } = await supabase.storage
+                                                    .from('avatars')
+                                                    .upload(fileName, file, { cacheControl: '3600', upsert: false });
+
+                                                if (uploadError) throw uploadError;
+
+                                                // 3. Ask Supabase for the permanent Public URL of the image
+                                                const { data: { publicUrl } } = supabase.storage
+                                                    .from('avatars')
+                                                    .getPublicUrl(fileName);
+
+                                                // 4. Optimistic UI Update (Show the image instantly!)
+                                                updateGroup(groupIdx, { avatar: publicUrl });
+
+                                                // 5. Fire-and-Forget Database Sync (Save the URL to Prisma)
+                                                const studentId = group.id;
+                                                if (!studentId) return;
+
+                                                updateStudentAvatar(studentId, publicUrl)
+                                                    .then(res => { if (!res.success) throw new Error("DB Error"); })
+                                                    .catch(() => alert("Failed to save avatar URL to the database."));
+
+                                            } catch (error: any) {
+                                                console.error("Upload error:", error);
+                                                alert("Failed to upload image: " + error.message);
+                                            }
+                                        }}
+                                    />
+
                                     <div className="flex items-center gap-3 mb-3">
-                                        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold text-lg overflow-hidden shrink-0 border border-white/30 shadow-inner">
-                                            {group.avatar ? (
+                                        {/* 👇 MODIFICATION: Label automatically triggers the input with matching ID */}
+                                        <label
+                                            htmlFor={`avatar-upload-${group.id}`}
+                                            className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center overflow-hidden shrink-0 border border-white/30 shadow-inner group/avatar relative cursor-pointer m-0"
+                                            title="Upload Photo"
+                                        >
+                                            {group.avatar && group.avatar.startsWith('http') ? (
+                                                /* 🖼️ Displays the uploaded photo URL from DB */
+                                                <img src={group.avatar} alt={group.title} className="w-full h-full object-cover" />
+                                            ) : group.avatar ? (
+                                                /* 👸 Fallback to old emojis if present */
                                                 <span className="text-xl">{group.avatar}</span>
                                             ) : (
-                                                <span className="text-white/80">{group.title.charAt(0)}</span>
+                                                /* 👨 Fallback to initials */
+                                                <span className="text-white/80 text-lg font-bold">{group.title.charAt(0)}</span>
                                             )}
-                                        </div>
+
+                                            {/* 🕵️ THE HOVER OVERLAY */}
+                                            <div className="absolute inset-0 bg-slate-900/80 flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity duration-200">
+                                                {/* Pencil Icon */}
+                                                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                            </div>
+                                        </label>
 
                                         <div className="flex-1 min-w-0">
                                             {groupEditing === groupIdx ? (

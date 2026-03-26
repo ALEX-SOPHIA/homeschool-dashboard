@@ -170,3 +170,18 @@ export async function archiveCompletedTasks() {
     return { success: false, error: "Failed to archive tasks in database" };
   }
 }
+
+export async function updateStudentAvatar(studentId: string, newAvatar: string) {
+  try {
+    await prisma.student.update({
+      where: { id: studentId },
+      data: { avatar: newAvatar }
+    });
+
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating avatar:", error);
+    return { success: false, error: "Failed to update avatar in database" };
+  }
+}
