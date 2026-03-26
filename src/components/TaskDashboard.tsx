@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { CheckCircle2, PlayCircle, Plus, Circle, UserPlus, Trash2 } from 'lucide-react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { ColdRocket } from './ColdRocket';
-import { createCourse, deleteCourse, updateCourse, updateStudent, createStudent, updateTaskStatus, updateTaskDuration, updateStudentAvatar } from '@/app/actions';
+import { createCourse, deleteCourse, updateCourse, updateStudent, createStudent, updateTaskStatus, updateTaskDuration, updateStudentAvatar, updateTaskSubject } from '@/app/actions';
 import { archiveCompletedTasks } from '@/app/actions';
 import { supabase } from '@/lib/supabase';
 /* ── 🎨 CSS Keyframe Engine ── */
@@ -195,7 +195,7 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [selected, setSelected] = useState<Map<string, any>>(new Map());
 
-    const [editing, setEditing] = useState<{ id: string; field: 'title' | 'targetDuration' } | null>(null);
+    const [editing, setEditing] = useState<{ id: string; field: 'title' | 'targetDuration' | 'subject' } | null>(null);
     const [groupEditing, setGroupEditing] = useState<number | null>(null);
     const [avatarEditing, setAvatarEditing] = useState<number | null>(null);
 
@@ -313,9 +313,13 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                     .then(res => { if (!res.success) throw new Error("DB Error"); })
                                                     .catch(() => alert("Failed to save avatar URL to the database."));
 
-                                            } catch (error: any) {
+                                            } catch (error: unknown) {
                                                 console.error("Upload error:", error);
-                                                alert("Failed to upload image: " + error.message);
+                                                if (error instanceof Error) {
+                                                    alert("Failed to upload image: " + error.message);
+                                                } else {
+                                                    alert("An unknown error occurred during upload.");
+                                                }
                                             }
                                         }}
                                     />
@@ -329,7 +333,10 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                         >
                                             {group.avatar && group.avatar.startsWith('http') ? (
                                                 /* 🖼️ Displays the uploaded photo URL from DB */
-                                                <img src={group.avatar} alt={group.title} className="w-full h-full object-cover" />
+                                                <>
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={group.avatar} alt={group.title} className="w-full h-full object-cover" />
+                                                </>
                                             ) : group.avatar ? (
                                                 /* 👸 Fallback to old emojis if present */
                                                 <span className="text-xl">{group.avatar}</span>
@@ -511,47 +518,65 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                         </div>
                                                     )}
                                                     {/* ⏱️ Dynamic Duration Editor */}
-                                                    {editing?.id === task.id && editing.field === 'targetDuration' ? (
-                                                        <input
-                                                            autoFocus
-                                                            className="w-16 text-xs text-slate-700 font-bold outline-none border-b border-blue-500 bg-transparent mt-1"
-                                                            defaultValue={task.targetDuration}
-                                                            onBlur={(e) => {
-                                                                const newDuration = e.target.value;
+                                                    {/* 🏷️ FLEX CONTAINER: Subject Badge + Duration */}
+                                                    <div className="flex items-center gap-3 mt-1.5">
 
-                                                                // 1. Optimistic Local Update
-                                                                updateTask(groupIdx, task.id, { targetDuration: newDuration });
-                                                                setEditing(null);
+                                                        {/* 1. THE NEW SUBJECT EDITOR */}
+                                                        {editing?.id === task.id && editing.field === 'subject' ? (
+                                                            <input
+                                                                autoFocus
+                                                                className="w-20 text-[10px] text-emerald-600 font-bold outline-none border-b border-emerald-500 bg-transparent uppercase tracking-wider"
+                                                                defaultValue={task.subject || 'General'}
+                                                                onBlur={(e) => {
+                                                                    const newSubject = e.target.value || 'General';
+                                                                    updateTask(groupIdx, task.id, { subject: newSubject });
+                                                                    setEditing(null);
+                                                                    updateTaskSubject(task.id, newSubject);
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') e.currentTarget.blur();
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'subject' })}
+                                                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md transition-colors uppercase tracking-wider ${task.status === 'completed'
+                                                                    ? 'bg-slate-100 text-slate-400'
+                                                                    : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 cursor-text'
+                                                                    }`}
+                                                            >
+                                                                {task.subject || 'General'}
+                                                            </div>
+                                                        )}
 
-                                                                // 2. Fire-and-Forget Database Sync
-                                                                updateTaskDuration(task.id, newDuration)
-                                                                    .then(res => { if (!res.success) throw new Error("DB Error"); })
-                                                                    .catch(() => alert("Failed to save duration."));
-                                                            }}
-                                                            onKeyDown={(e) => {
-                                                                if (e.key === 'Enter') {
-                                                                    const newDuration = e.currentTarget.value;
-
-                                                                    // 1. Optimistic Local Update
+                                                        {/* 2. YOUR EXISTING DURATION EDITOR */}
+                                                        {editing?.id === task.id && editing.field === 'targetDuration' ? (
+                                                            <input
+                                                                autoFocus
+                                                                className="w-16 text-xs text-slate-700 font-bold outline-none border-b border-blue-500 bg-transparent"
+                                                                defaultValue={task.targetDuration}
+                                                                onBlur={(e) => {
+                                                                    const newDuration = e.target.value;
                                                                     updateTask(groupIdx, task.id, { targetDuration: newDuration });
                                                                     setEditing(null);
-
-                                                                    // 2. Fire-and-Forget Database Sync
                                                                     updateTaskDuration(task.id, newDuration)
                                                                         .then(res => { if (!res.success) throw new Error("DB Error"); })
                                                                         .catch(() => alert("Failed to save duration."));
-                                                                }
-                                                            }}
-                                                        />
-                                                    ) : (
-                                                        <div
-                                                            onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'targetDuration' })}
-                                                            className={`text-xs mt-1 font-medium transition-colors ${task.status === 'completed' ? 'text-slate-400' : 'text-slate-400 hover:text-blue-500 cursor-text'
-                                                                }`}
-                                                        >
-                                                            {task.targetDuration}
-                                                        </div>
-                                                    )}
+                                                                }}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') e.currentTarget.blur();
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <div
+                                                                onClick={() => task.status !== 'completed' && setEditing({ id: task.id, field: 'targetDuration' })}
+                                                                className={`text-xs font-medium transition-colors ${task.status === 'completed' ? 'text-slate-400' : 'text-slate-400 hover:text-blue-500 cursor-text'
+                                                                    }`}
+                                                            >
+                                                                {task.targetDuration}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
 
                                                 {/* Start Button stays perfectly right-aligned */}

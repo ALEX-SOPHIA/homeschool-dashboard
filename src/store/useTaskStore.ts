@@ -10,6 +10,7 @@ export interface TaskItem {
     isOverdue?: boolean;
     status: TaskStatus;
     targetDuration: string;
+    subject?: string;
 }
 
 export interface TaskGroup {

@@ -55,21 +55,28 @@ export default function DashboardClient({ initialFamilyData }: { initialFamilyDa
     }
   }, [initialFamilyData, setGroups]);
 
-  // --- Your original timer logic remains untouched below ---
+ // 🛠️ UPGRADED: Now safely handles both Numbers (new schema) and Strings (legacy schema)
+    const parseDurationToMs = (duration: string | number): number => {
+        // 1. If it is already a pure number (e.g., 30 minutes), just convert to milliseconds
+        if (typeof duration === 'number') {
+            return duration * 60 * 1000; 
+        }
 
-  const parseDurationToMs = (duration: string): number => {
-    const hoursMatch = duration.match(/(\d+)h/);
-    const minsMatch = duration.match(/(\d+)m/);
-    const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0;
-    const mins = minsMatch ? parseInt(minsMatch[1]) : 0;
-    
-    if (!hoursMatch && !minsMatch) {
-      const rawVal = parseInt(duration);
-      if (!isNaN(rawVal)) return rawVal * 60 * 1000; 
-    }
+        // 2. If it is a string, safely cast it to avoid the .match() crash
+        const safeString = String(duration || "0");
+        const hoursMatch = safeString.match(/(\d+)h/i);
+        const minsMatch = safeString.match(/(\d+)m/i);
+        
+        // 3. Fallback: If it's a string that is just a number (e.g., "30"), treat as minutes
+        if (!hoursMatch && !minsMatch && !isNaN(Number(safeString))) {
+            return Number(safeString) * 60 * 1000;
+        }
 
-    return (hours * 60 * 60 * 1000) + (mins * 60 * 1000);
-  };
+        const hours = hoursMatch ? parseInt(hoursMatch[1]) : 0;
+        const mins = minsMatch ? parseInt(minsMatch[1]) : 0;
+
+        return (hours * 60 + mins) * 60 * 1000;
+    };
 
   const handleStartTasks = (tasksToStart: { id: string, title: string, subject: string, targetDuration: string }[]) => {
     const sessionIds: string[] = [];

@@ -1,9 +1,16 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { revalidatePath } from 'next/cache'; // Import the cache invalidation function from Next.js
+import { revalidatePath } from 'next/cache';
 
-// --- TOOL 1: The Seeder (Your existing code) ---
+// 🛠️ HELPER: Converts "1h" to 60, or "30m" to 30 for the database
+function parseDurationToMinutes(durationStr: string): number {
+  const lower = durationStr.toLowerCase().trim();
+  if (lower.endsWith('h')) return parseInt(lower) * 60;
+  if (lower.endsWith('m')) return parseInt(lower);
+  return parseInt(lower) || 30; // Defaults to 30 if they type something weird
+}
+
 export async function seedTestFamily(formData: FormData) {
   try {
     const newFamily = await prisma.family.create({
@@ -23,42 +30,31 @@ export async function seedTestFamily(formData: FormData) {
   }
 }
 
-// --- TOOL 2: The Course Creator (The new code to append) ---
 export async function createCourse(studentId: string) {
   try {
     const newTask = await prisma.task.create({
       data: {
         title: 'New Course',
-        targetDuration: '30m',
+        subject: 'General',   // 👈 NEW: Default category
+        targetDuration: 30,   // 👈 NEW: Pure integer (minutes)
+        actualDuration: 0,    // 👈 NEW: Starts at 0 minutes spent
         status: 'pending',
         studentId: studentId,
       }
     });
 
-    // Cache Invalidation: Tell Next.js to clear the cache and refresh the dashboard
     revalidatePath('/');
-
     return { success: true, task: newTask };
-
   } catch (error) {
     console.error("🔥 Database Insert Failed:", error);
     return { success: false, error: "Failed to create course" };
   }
 }
 
-
 export async function deleteCourse(taskId: string) {
   try {
-    // 1. Tell Prisma to execute the DELETE SQL command
-    await prisma.task.delete({
-      where: {
-        id: taskId
-      }
-    });
-
-    // 2. Cache Invalidation: Tell Next.js to purge the old HTML
+    await prisma.task.delete({ where: { id: taskId } });
     revalidatePath('/');
-
     return { success: true };
   } catch (error) {
     console.error("Error deleting course:", error);
@@ -68,12 +64,10 @@ export async function deleteCourse(taskId: string) {
 
 export async function updateStudent(studentId: string, newName: string) {
   try {
-    // Tell Prisma to update the Student table
     await prisma.student.update({
       where: { id: studentId },
       data: { name: newName }
     });
-
     revalidatePath('/');
     return { success: true };
   } catch (error) {
@@ -84,11 +78,9 @@ export async function updateStudent(studentId: string, newName: string) {
 
 export async function createStudent() {
   try {
-    // 1. Find our auto-seeded family
     const family = await prisma.family.findFirst();
     if (!family) throw new Error("Family not found in database");
 
-    // 2. Create the child in the database
     await prisma.student.create({
       data: {
         name: "New Child",
@@ -97,7 +89,6 @@ export async function createStudent() {
       }
     });
 
-    // 3. Purge the cache so Next.js pulls the new child on the next render
     revalidatePath('/');
     return { success: true };
   } catch (error) {
@@ -108,15 +99,11 @@ export async function createStudent() {
 
 export async function updateCourse(taskId: string, newTitle: string) {
   try {
-    // 1. Tell Prisma to execute the UPDATE SQL command
     await prisma.task.update({
       where: { id: taskId },
       data: { title: newTitle }
     });
-
-    // 2. Purge the Next.js cache
     revalidatePath('/');
-
     return { success: true };
   } catch (error) {
     console.error("Error updating course:", error);
@@ -124,11 +111,26 @@ export async function updateCourse(taskId: string, newTitle: string) {
   }
 }
 
-export async function updateTaskStatus(taskId: string, newStatus: string) {
+// 🚀 UPGRADED: Now handles Time Tracking & Atomic Increments!
+export async function updateTaskStatus(taskId: string, newStatus: string, timeSpentMinutes: number = 0) {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const updateData: any = { status: newStatus };
+
+    if (newStatus === 'completed') {
+      updateData.completedAt = new Date(); // 👈 Stamp the exact completion time
+      
+      if (timeSpentMinutes > 0) {
+        // 👈 ATOMIC INCREMENT: Adds new time to the old time without overriding it!
+        updateData.actualDuration = { increment: timeSpentMinutes }; 
+      }
+    } else if (newStatus === 'pending') {
+      updateData.completedAt = null; // 👈 Clear the timestamp if they uncheck it
+    }
+
     await prisma.task.update({
       where: { id: taskId },
-      data: { status: newStatus }
+      data: updateData
     });
 
     revalidatePath('/');
@@ -139,11 +141,14 @@ export async function updateTaskStatus(taskId: string, newStatus: string) {
   }
 }
 
-export async function updateTaskDuration(taskId: string, newDuration: string) {
+// 🚀 UPGRADED: Safely converts string inputs ("30m") to integers before saving
+export async function updateTaskDuration(taskId: string, newDurationString: string) {
   try {
+    const durationInMinutes = parseDurationToMinutes(newDurationString); // 👈 Convert to Int
+
     await prisma.task.update({
       where: { id: taskId },
-      data: { targetDuration: newDuration }
+      data: { targetDuration: durationInMinutes }
     });
 
     revalidatePath('/');
@@ -156,13 +161,10 @@ export async function updateTaskDuration(taskId: string, newDuration: string) {
 
 export async function archiveCompletedTasks() {
   try {
-    // 1. Tell Prisma to change all 'completed' tasks to 'archived'
     await prisma.task.updateMany({
       where: { status: 'completed' },
       data: { status: 'archived' }
     });
-
-    // 2. Purge the cache so the dashboard refreshes clean
     revalidatePath('/');
     return { success: true };
   } catch (error) {
@@ -177,11 +179,25 @@ export async function updateStudentAvatar(studentId: string, newAvatar: string) 
       where: { id: studentId },
       data: { avatar: newAvatar }
     });
-
     revalidatePath('/');
     return { success: true };
   } catch (error) {
     console.error("Error updating avatar:", error);
     return { success: false, error: "Failed to update avatar in database" };
+  }
+}
+
+// 🚀 NEW: Updates the subject category
+export async function updateTaskSubject(taskId: string, newSubject: string) {
+  try {
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { subject: newSubject }
+    });
+    revalidatePath('/');
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating subject:", error);
+    return { success: false, error: "Failed to update subject in database" };
   }
 }

@@ -28,15 +28,29 @@ model Student {
   
   // A student has many tasks
   tasks     Task[]
+
+  // A student owns a collection of course templates
+  templates CourseTemplate[]
 }
 
 // 3. The Assignment (学习任务)
 model Task {
   id             String        @id @default(uuid())
   title          String
-  subject        String?
-  targetDuration String?
+  
+  // 👇 MODIFICATION 1: Default category for ad-hoc tasks
+  subject        String        @default("General")
+  
+  // 👇 MODIFICATION 2: Changed from String? to Int (always store minutes!)
+  targetDuration Int           @default(0)
+  
+  // 👇 MODIFICATION 3: The exact time spent
+  actualDuration Int           @default(0)
+  
   status         String        @default("pending") // "pending", "in_progress", or "completed"
+  
+  // 👇 MODIFICATION 4: Time-series timestamp for the semester review
+  completedAt    DateTime?
   
   // Foreign Key linking to the Student table
   studentId      String
@@ -56,4 +70,19 @@ model TimeSession {
   // Foreign Key linking to the Task table
   taskId          String
   task            Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+// 5. The Template Engine (课程预设胶囊)
+model CourseTemplate {
+  id              String   @id @default(uuid())
+  title           String   // e.g., "English Reading"
+  subject         String   @default("General") // e.g., "English"
+  color           String   @default("#3b82f6") // Stores the UI color code
+  defaultDuration Int      @default(30) // Default planned minutes
+  
+  // Foreign Key linking to the Student table
+  studentId       String
+  student         Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
 }

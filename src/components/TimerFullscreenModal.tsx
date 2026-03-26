@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { useConcurrentTimers } from '@/hooks/useConcurrentTimers';
 import { TimerSession, useTimerStore } from '@/store/useTimerStore';
 import { useTaskStore } from '@/store/useTaskStore';
 import { motion, useAnimationFrame, useMotionValue, useTransform } from 'framer-motion';
-import { Play, Pause, Trash2, CheckCircle2, Minimize2, User } from 'lucide-react';
+import { Play, Pause, Trash2, CheckCircle2, Minimize2, User, AlertCircle } from 'lucide-react';
 import { updateTaskStatus } from '@/app/actions';
 
 interface TimerFullscreenModalProps {
@@ -12,7 +13,6 @@ interface TimerFullscreenModalProps {
 export default function TimerFullscreenModal({ sessions }: TimerFullscreenModalProps) {
     const { setActiveFocusSessions } = useTimerStore();
 
-    // Determine grid columns based on number of sessions
     const getGridClass = () => {
         const count = sessions.length;
         if (count === 1) return "grid-cols-1 max-w-2xl";
@@ -24,8 +24,6 @@ export default function TimerFullscreenModal({ sessions }: TimerFullscreenModalP
 
     return (
         <div className="fixed inset-0 z-[100] bg-[#0c0d10] text-[#e0e1dd] flex flex-col items-center justify-center animate-in fade-in duration-500 overflow-y-auto pt-24 pb-12">
-
-            {/* Top Bar */}
             <div className="absolute top-0 left-0 w-full p-8 flex justify-between items-start z-50 pointer-events-none">
                 <button
                     onClick={() => setActiveFocusSessions([])}
@@ -53,18 +51,50 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
     const { completeTask } = useTaskStore();
     const elapsedMotion = useMotionValue(getElapsedMs(session.id));
 
-    const handleComplete = () => {
-        // ID is stored as `session-${taskId}` in page.tsx
+    // 👇 NEW: Interceptor State
+    const [confirmModal, setConfirmModal] = useState<'complete' | 'cancel' | null>(null);
+
+    const handleAction = async (action: 'complete' | 'cancel', saveTime: boolean) => {
         const taskId = session.id.replace('session-', '');
+        const elapsedMinutes = Math.floor(getElapsedMs(session.id) / 60000); // Convert to pure minutes
+        const timeToSave = saveTime ? elapsedMinutes : 0;
 
-        // 1. Optimistic Local Update
-        completeTask(taskId);
-        remove(session.id);
+        if (action === 'complete') {
+            // 1. Local UI Update
+            completeTask(taskId);
+            remove(session.id);
+            // 2. Database Sync (Using our new upgraded Action!)
+            await updateTaskStatus(taskId, 'completed', timeToSave);
+        } else {
+            // Cancel means we just remove the timer, but maybe we still save the time!
+            remove(session.id);
+            if (saveTime && timeToSave > 0) {
+                // Keep it 'pending' so they can resume later, but save the time spent so far
+                await updateTaskStatus(taskId, 'pending', timeToSave);
+            }
+        }
+    };
 
-        // 2. Fire-and-Forget Database Sync
-        updateTaskStatus(taskId, 'completed')
-            .then(res => { if (!res.success) throw new Error("DB Error"); })
-            .catch(() => alert("Failed to save completion status to the cloud."));
+    const attemptComplete = () => {
+        const elapsed = getElapsedMs(session.id);
+        if (elapsed >= totalDurationMs) {
+            handleAction('complete', true); // Natural finish -> Auto Save
+        } else if (elapsed > 60000) {
+            pause(session.id); // Pause while they think
+            setConfirmModal('complete'); // Show Interceptor
+        } else {
+            handleAction('complete', false); // < 1 min, just mark done silently
+        }
+    };
+
+    const attemptCancel = () => {
+        const elapsed = getElapsedMs(session.id);
+        if (elapsed > 60000) {
+            pause(session.id); // Pause while they think
+            setConfirmModal('cancel'); // Show Interceptor
+        } else {
+            handleAction('cancel', false); // < 1 min, just delete silently
+        }
     };
 
     useAnimationFrame(() => {
@@ -72,7 +102,7 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
         if (elapsed >= totalDurationMs && session.isRunning) {
             pause(session.id);
             elapsedMotion.set(totalDurationMs);
-            handleComplete();
+            handleAction('complete', true); // Natural finish -> Auto Save!
         } else {
             elapsedMotion.set(elapsed);
         }
@@ -87,14 +117,47 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
         const minutes = Math.floor((totalSeconds % 3600) / 60);
         const seconds = totalSeconds % 60;
 
-        if (hours > 0) {
-            return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-        }
+        if (hours > 0) return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
         return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     });
 
+    const elapsedMinutesForDisplay = Math.floor(getElapsedMs(session.id) / 60000);
+
     return (
-        <div className="w-full flex justify-center">
+        <div className="w-full flex justify-center relative">
+
+            {/* 👇 NEW: The Interceptor Overlay Modal */}
+            {confirmModal && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#0c0d10]/80 backdrop-blur-md rounded-3xl border border-white/10 p-6 animate-in zoom-in-95 duration-200">
+                    <div className="flex flex-col items-center text-center">
+                        <AlertCircle className="w-12 h-12 text-blue-400 mb-4" />
+                        <h3 className="text-xl font-bold text-white mb-2">
+                            {confirmModal === 'complete' ? 'Finished Early?' : 'Wait a second!'}
+                        </h3>
+                        <p className="text-sm text-slate-300 mb-6">
+                            You studied for <span className="text-emerald-400 font-bold">
+                                {elapsedMinutesForDisplay} {elapsedMinutesForDisplay === 1 ? 'minute' : 'minutes'}
+                            </span>. <br />
+                            Do you want to save this time to your record?
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button
+                                onClick={() => handleAction(confirmModal, false)}
+                                className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white text-sm font-semibold transition-colors"
+                            >
+                                No, discard time
+                            </button>
+                            <button
+                                onClick={() => handleAction(confirmModal, true)}
+                                className="flex-1 px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold transition-colors shadow-lg shadow-blue-500/20"
+                            >
+                                Yes, save it
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="w-full max-w-[500px] flex flex-col items-center justify-center">
 
                 <div className="w-full justify-center flex flex-row items-center gap-4 z-10 mb-8 px-4 flex-wrap">
@@ -110,7 +173,6 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
                 </div>
 
                 <div className="relative w-full aspect-square flex flex-col items-center justify-center group z-10 shrink-0">
-                    {/* Main Ring */}
                     <svg viewBox="0 0 500 500" className="absolute inset-0 w-full h-full transform -rotate-90">
                         <defs>
                             <linearGradient id={`gradient-${session.id}`} x1="0%" y1="0%" x2="100%" y2="100%">
@@ -120,54 +182,16 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
                                 <stop offset="100%" stopColor="#ff2a2a" />
                             </linearGradient>
                         </defs>
-
-                        {/* Background dimmed segmented ring */}
-                        <circle
-                            cx="250"
-                            cy="250"
-                            r="240"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="16"
-                            className="text-white/5"
-                            strokeDasharray="24 12"
-                        />
-
-                        {/* Foreground bright segmented ring */}
+                        <circle cx="250" cy="250" r="240" fill="none" stroke="currentColor" strokeWidth="16" className="text-white/5" strokeDasharray="24 12" />
                         <motion.circle
-                            cx="250"
-                            cy="250"
-                            r="240"
-                            fill="none"
-                            stroke={`url(#gradient-${session.id})`}
-                            strokeWidth="16"
-                            strokeLinecap="butt"
+                            cx="250" cy="250" r="240" fill="none" stroke={`url(#gradient-${session.id})`} strokeWidth="16" strokeLinecap="butt"
                             className={session.isRunning ? "drop-shadow-[0_0_15px_rgba(255,255,255,0.15)]" : "opacity-50"}
-                            strokeDasharray="1508"
-                            style={{ strokeDashoffset: useTransform(progress, (v) => 1508 - (1508 * v) / 100) }}
+                            strokeDasharray="1508" style={{ strokeDashoffset: useTransform(progress, (v) => 1508 - (1508 * v) / 100) }}
                         />
-
-                        {/* Re-apply gap mask using dashed stroke over the top to 'cut out' the gradient */}
-                        <circle
-                            cx="250"
-                            cy="250"
-                            r="240"
-                            fill="none"
-                            stroke="#0c0d10" /* Must match background! */
-                            strokeWidth="18"
-                            strokeDasharray="0 24 12 0"
-                            className="pointer-events-none"
-                        />
+                        <circle cx="250" cy="250" r="240" fill="none" stroke="#0c0d10" strokeWidth="18" strokeDasharray="0 24 12 0" className="pointer-events-none" />
                     </svg>
-
                     <div className="absolute inset-0 flex flex-col items-center justify-center z-20 pointer-events-none">
-                        <div
-                            className="font-bold tracking-[0.05em] tabular-nums text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.2)] leading-none text-center"
-                            style={{
-                                fontFamily: 'var(--font-share-tech-mono), monospace',
-                                fontSize: isMulti ? 'min(11vw, 90px)' : 'min(17vw, 155px)',
-                            }}
-                        >
+                        <div className="font-bold tracking-[0.05em] tabular-nums text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.2)] leading-none text-center" style={{ fontFamily: 'var(--font-share-tech-mono), monospace', fontSize: isMulti ? 'min(11vw, 90px)' : 'min(17vw, 155px)' }}>
                             <motion.span>{timeDisplay}</motion.span>
                         </div>
                     </div>
@@ -175,11 +199,8 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
 
                 <div className={`flex items-center gap-6 mt-12 z-10 w-full justify-center px-6`}>
                     <button
-                        onClick={() => {
-                            remove(session.id);
-                        }}
+                        onClick={attemptCancel} // 👈 UPGRADED INTERCEPTOR
                         className="p-3 sm:p-4 text-white/30 hover:bg-red-500/20 hover:text-red-400 rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-red-400"
-                        aria-label="Cancel Timer"
                     >
                         <Trash2 size={isMulti ? 24 : 28} />
                     </button>
@@ -188,7 +209,6 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
                         <button
                             onClick={() => pause(session.id)}
                             className="p-6 sm:p-8 bg-black/40 border border-white/10 hover:bg-black/60 shadow-[0_4px_30px_rgba(0,0,0,0.5)] text-[#00d8ff] hover:scale-[1.03] active:scale-95 rounded-3xl transition-all focus-visible:ring-2 focus-visible:ring-[#00d8ff]/50"
-                            aria-label="Pause Timer"
                         >
                             <Pause size={isMulti ? 32 : 40} className="fill-current" />
                         </button>
@@ -196,16 +216,14 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
                         <button
                             onClick={() => start(session.id)}
                             className="p-6 sm:p-8 bg-gradient-to-br from-[#1e2326] to-[#0f1112] border border-white/10 shadow-[inner_0_1px_1px_rgba(255,255,255,0.05),0_8px_30px_rgba(0,0,0,0.5)] hover:border-white/20 text-white hover:scale-[1.03] active:scale-95 rounded-3xl transition-all focus-visible:ring-2 focus-visible:ring-white/30"
-                            aria-label="Start Timer"
                         >
                             <Play size={isMulti ? 32 : 40} className="fill-current ml-2" />
                         </button>
                     )}
 
                     <button
-                        onClick={handleComplete}
+                        onClick={attemptComplete} // 👈 UPGRADED INTERCEPTOR
                         className="p-3 sm:p-4 text-white/30 hover:bg-emerald-500/20 hover:text-emerald-400 hover:scale-110 active:scale-95 rounded-full transition-all outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
-                        aria-label="Complete Session"
                     >
                         <CheckCircle2 size={isMulti ? 26 : 30} />
                     </button>
