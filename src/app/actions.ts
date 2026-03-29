@@ -83,7 +83,7 @@ export async function createStudent() {
 
     await prisma.student.create({
       data: {
-        name: "New Child",
+        name: "New Astronaut",
         avatar: "🧒", 
         familyId: family.id
       }

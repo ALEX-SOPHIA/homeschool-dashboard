@@ -60,10 +60,15 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
         const timeToSave = saveTime ? elapsedMinutes : 0;
 
         if (action === 'complete') {
-            // 1. Local UI Update
+            // 🎵 1. Fire-and-forget Audio Cue (添加完成音效)
+            const completionAudio = new Audio('/sounds/success.wav'); 
+            completionAudio.volume = 0.7; 
+            completionAudio.play().catch(e => console.warn("Audio play failed:", e));
+
+            // 2. Local UI Update
             completeTask(taskId);
             remove(session.id);
-            // 2. Database Sync (Using our new upgraded Action!)
+            // 3. Database Sync (Using our new upgraded Action!)
             await updateTaskStatus(taskId, 'completed', timeToSave);
         } else {
             // Cancel means we just remove the timer, but maybe we still save the time!

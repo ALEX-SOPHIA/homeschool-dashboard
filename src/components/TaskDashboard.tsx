@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { CheckCircle2, PlayCircle, Plus, Circle, UserPlus, Trash2 } from 'lucide-react';
 import { useTaskStore } from '@/store/useTaskStore';
 import { ColdRocket } from './ColdRocket';
-import { createCourse, deleteCourse, updateCourse, updateStudent, createStudent, updateTaskStatus, updateTaskDuration, updateStudentAvatar, updateTaskSubject } from '@/app/actions';
+import { createCourse, deleteCourse, updateCourse, updateStudent, createStudent, updateTaskStatus, updateTaskDuration, updateStudentAvatar } from '@/app/actions';
 import { archiveCompletedTasks } from '@/app/actions';
 import { supabase } from '@/lib/supabase';
 /* ── 🎨 CSS Keyframe Engine ── */
@@ -40,11 +40,28 @@ const ProceduralPlanet = () => (
 
 interface StarData { size: number; top: number; left: number; delay: number; duration: number; }
 
+// 👉 1. 新增：告诉 TypeScript 我们的宇航员数据长什么样 (解决 implicit 'any' 报错)
+interface AstronautStat {
+    id: string;
+    title: string;
+    total: number;
+    completed: number;
+    percentage: number;
+}
+
 /* ── 子组件：电影级火箭发射台 ── */
-function RocketLaunchpad({ totalTasks, completedTasks, percentage, onClearTasks }: {
-    totalTasks: number; completedTasks: number; percentage: number; onClearTasks: () => void;
+// 👉 2. 修复：在参数里接收 astronautStats，并给它套上刚刚定义的类型 (解决 Cannot find name 报错)
+function RocketLaunchpad({ totalTasks, completedTasks, percentage, astronautStats, onClearTasks }: {
+    totalTasks: number;
+    completedTasks: number;
+    percentage: number;
+    astronautStats: AstronautStat[];
+    onClearTasks: () => void;
 }) {
     const [launchStatus, setLaunchStatus] = useState<'idle' | 'shaking' | 'liftoff' | 'completed'>('idle');
+    // 👉 ADD THESE TWO REFS (用于保存音频实例和播放状态，防止重复播放)
+    const igniteAudioRef = useRef<HTMLAudioElement | null>(null);
+    const audioPlayed = useRef({ shake: false, cheer: false });
     const [stars, setStars] = useState<StarData[]>([]);
 
     useEffect(() => {
@@ -61,12 +78,67 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage, onClearTasks 
 
     useEffect(() => {
         if (percentage === 100 && totalTasks > 0) {
-            const timer0 = setTimeout(() => setLaunchStatus('shaking'), 0);
-            const timer1 = setTimeout(() => setLaunchStatus('liftoff'), 1000);
-            const timer2 = setTimeout(() => setLaunchStatus('completed'), 3500);
-            return () => { clearTimeout(timer0); clearTimeout(timer1); clearTimeout(timer2); };
+
+            // 👉 修复：将同步的 setState 推迟到下一个事件循环 (Macro-task)，完美避开级联渲染警告
+            const initTimer = setTimeout(() => setLaunchStatus('shaking'), 0);
+
+            if (!audioPlayed.current.shake) {
+                const audio = new Audio('/sounds/ignite.wav');
+                audio.volume = 0.6;
+                igniteAudioRef.current = audio;
+                audio.play().catch(e => console.warn("Audio play failed:", e));
+                audioPlayed.current.shake = true;
+            }
+
+            const timer1 = setTimeout(() => {
+                setLaunchStatus('liftoff');
+
+                if (igniteAudioRef.current) {
+                    const fadeOut = setInterval(() => {
+                        if (igniteAudioRef.current) {
+                            const newVolume = igniteAudioRef.current.volume - 0.05;
+                            if (newVolume > 0) {
+                                igniteAudioRef.current.volume = newVolume;
+                            } else {
+                                igniteAudioRef.current.volume = 0;
+                                igniteAudioRef.current.pause();
+                                clearInterval(fadeOut);
+                            }
+                        } else {
+                            clearInterval(fadeOut);
+                        }
+                    }, 150);
+                }
+            }, 1000);
+
+            const timer2 = setTimeout(() => {
+                setLaunchStatus('completed');
+
+                if (igniteAudioRef.current) {
+                    igniteAudioRef.current.pause();
+                    igniteAudioRef.current = null;
+                }
+                if (!audioPlayed.current.cheer) {
+                    const cheerAudio = new Audio('/sounds/cheer.wav');
+                    cheerAudio.volume = 0.8;
+                    cheerAudio.play().catch(e => console.warn("Audio play failed:", e));
+                    audioPlayed.current.cheer = true;
+                }
+            }, 3500);
+
+            // 记得把 initTimer 也加到清理函数里
+            return () => { clearTimeout(initTimer); clearTimeout(timer1); clearTimeout(timer2); };
+
         } else if (percentage < 100) {
+            // 👉 修复：重置状态时同样使用 setTimeout 避开警告
             const resetTimer = setTimeout(() => setLaunchStatus('idle'), 0);
+
+            audioPlayed.current = { shake: false, cheer: false };
+            if (igniteAudioRef.current) {
+                igniteAudioRef.current.pause();
+                igniteAudioRef.current = null;
+            }
+
             return () => clearTimeout(resetTimer);
         }
     }, [percentage, totalTasks]);
@@ -98,7 +170,7 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage, onClearTasks 
     }
 
     return (
-        <div className="bg-black p-8 rounded-xl shadow-2xl mb-8 relative overflow-hidden min-h-[220px] border border-slate-900 flex items-center justify-center">
+        <div className="bg-black px-8 pt-5 pb-6 rounded-xl shadow-2xl mb-3 relative overflow-hidden min-h-[220px] border border-slate-900 flex items-center justify-center">
             <AnimationEngine />
 
             <div className="absolute inset-0 z-0 pointer-events-none">
@@ -116,40 +188,54 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage, onClearTasks 
                 ))}
             </div>
 
-            <div className="max-w-4xl mx-auto flex items-center justify-between gap-12 relative z-10 w-full h-full">
+            <div className="max-w-4xl mx-auto flex items-start justify-between gap-12 relative z-10 w-full h-full pt-2">
                 {launchStatus === 'idle' || launchStatus === 'shaking' ? (
                     <div className="flex items-center flex-1 gap-12 animate-in fade-in duration-500">
                         <div className="flex flex-col gap-5 shrink-0">
 
-                            <div className="flex flex-col gap-3">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                                    <span className="text-xs font-black tracking-[0.25em] text-emerald-800 uppercase">Energy Core</span>
+                            <div className="flex flex-col gap-4 w-full pr-4">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                                        <span className="text-xs font-black tracking-[0.25em] text-emerald-800 uppercase">Crew Energy Levels</span>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="text-2xl font-black text-white italic tracking-tighter leading-none">{Math.round(percentage)}%</span>
+                                        <span className="text-slate-500 text-[10px] uppercase tracking-wider ml-1">Overall</span>
+                                    </div>
                                 </div>
 
-                                <div className="flex items-center gap-6">
-                                    <div className="flex gap-1.5 relative overflow-hidden p-1 bg-slate-900/50 rounded-lg border border-slate-800">
-                                        <div
-                                            className="absolute top-0 bottom-0 w-8 bg-gradient-to-r from-transparent via-white/30 to-transparent z-20 pointer-events-none"
-                                            style={{ animation: 'battery-sweep 2.5s ease-in-out infinite' }}
-                                        />
+                                {/* 👇 动态遍历生成每一行 (The Granular Grid) */}
+                                <div className="flex flex-col gap-3 max-h-[220px] overflow-y-auto custom-scrollbar">
+                                    {astronautStats.map((astro, idx) => (
+                                        <div key={astro.id || idx} className="flex items-center gap-4">
+                                            {/* 宇航员名字 */}
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest w-16 truncate text-right">
+                                                {astro.title}
+                                            </span>
 
-                                        {/* 👇 MODIFICATION: Dynamic length based on total courses! */}
-                                        {[...Array(totalTasks)].map((_, i) => {
-                                            const isLit = i < completedTasks;
-                                            return (
-                                                <div
-                                                    key={i}
-                                                    className={`w-8 h-6 rounded-[4px] transition-all duration-700 z-10 ${isLit ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)]' : 'bg-slate-800/80 border border-slate-700'}`}
-                                                />
-                                            );
-                                        })}
-                                    </div>
+                                            {/* 独立的能量条轨道 */}
+                                            <div className="flex-1 flex flex-wrap gap-1 p-1 bg-slate-900/50 rounded-lg border border-slate-800 relative overflow-hidden min-h-[26px]">
+                                                <div className="absolute top-0 bottom-0 w-8 bg-gradient-to-r from-transparent via-white/10 to-transparent z-20 pointer-events-none" style={{ animation: 'battery-sweep 2.5s ease-in-out infinite' }} />
 
-                                    <div className="flex items-end gap-2">
-                                        <span className="text-3xl font-black text-white italic tracking-tighter leading-none">{Math.round(percentage)}%</span>
-                                        <span className="text-slate-500 text-sm uppercase tracking-wider pb-0.5">/ 100% Complete</span>
-                                    </div>
+                                                {astro.total === 0 ? (
+                                                    <div className="w-full text-center text-[9px] text-slate-600 uppercase tracking-widest mt-0.5">Awaiting Orders</div>
+                                                ) : (
+                                                    [...Array(astro.total)].map((_, i) => (
+                                                        <div
+                                                            key={i}
+                                                            className={`w-5 h-4 rounded-[3px] transition-all duration-700 z-10 ${i < astro.completed ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 'bg-slate-800/80 border border-slate-700'}`}
+                                                        />
+                                                    ))
+                                                )}
+                                            </div>
+
+                                            {/* 独立的百分比 */}
+                                            <span className="text-[10px] font-black text-emerald-500 w-8 text-right">
+                                                {Math.round(astro.percentage)}%
+                                            </span>
+                                        </div>
+                                    ))}
                                 </div>
                             </div>
 
@@ -189,7 +275,7 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage, onClearTasks 
 /* ── 主看板组件：TaskDashboard ── */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks: any[]) => void }) {
-    const { groups, addGroup, completeTask, updateGroup, updateTask, removeTask, undoTask } = useTaskStore();
+    const { groups, completeTask, updateGroup, updateTask, removeTask, undoTask } = useTaskStore();
     const [isHydrated, setIsHydrated] = useState(false);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -197,7 +283,6 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
 
     const [editing, setEditing] = useState<{ id: string; field: 'title' | 'targetDuration' | 'subject' } | null>(null);
     const [groupEditing, setGroupEditing] = useState<number | null>(null);
-    const [avatarEditing, setAvatarEditing] = useState<number | null>(null);
 
     useEffect(() => {
         const hydrationTimer = setTimeout(() => setIsHydrated(true), 0);
@@ -209,6 +294,18 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
     const totalTasks = groups.reduce((acc, g) => acc + g.tasks.length, 0);
     const completedTasks = groups.reduce((acc, g) => acc + g.tasks.filter(t => t.status === 'completed').length, 0);
     const percentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+    // 🚀 新增：为每个宇航员计算独立的数据 (Granular Stats)
+    const astronautStats = groups.map(g => {
+        const total = g.tasks.length;
+        const completed = g.tasks.filter(t => t.status === 'completed').length;
+        return {
+            id: g.id!,
+            title: g.title,
+            total,
+            completed,
+            percentage: total > 0 ? (completed / total) * 100 : 0
+        };
+    });
 
     const toggle = (taskId: string, title: string, subject: string, targetDuration: string) => {
         setSelected(prev => {
@@ -244,11 +341,12 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
 
     return (
         <div className="flex-1 bg-[#f7f8fa] flex flex-col overflow-hidden h-[calc(100vh-64px)] relative">
-            <div className="shrink-0 px-8 pt-8 pb-5">
+            <div className="shrink-0 px-8 pt-2 pb-1">
                 <RocketLaunchpad
                     totalTasks={totalTasks}
                     completedTasks={completedTasks}
                     percentage={percentage}
+                    astronautStats={astronautStats}
                     onClearTasks={() => {
                         // 1. Optimistic Local Clear: Remove completed tasks instantly from the UI
                         groups.forEach((g, gIdx) => {
@@ -443,7 +541,7 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                             alert("Network error: Failed to delete course. Your screen is out of sync, please refresh.");
                                                         });
                                                 }}
-                                                className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all p-1.5 hover:bg-red-50 rounded-md z-10"
+                                                className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all p-1 hover:bg-red-50 rounded-tr-xl rounded-bl-xl z-10"
                                             >
                                                 <Trash2 size={15} />
                                             </button>
@@ -475,7 +573,7 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
 
                                                 {/* FIX: Ensure min-w-0 and truncate so text doesn't push the button out */}
                                                 <div className="flex-1 min-w-0">
-                                                    {editing?.id === task.id && editing.field === 'title' ? (
+                                                    {editing?.id === task.id && editing?.field === 'title' ? (
                                                         <input
                                                             autoFocus
                                                             className={`w-full text-sm font-semibold text-slate-700 outline-none border-b border-blue-500 bg-transparent`}
@@ -521,7 +619,7 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                                                     {/* 🏷️ FLEX CONTAINER: Subject Badge + Duration */}
                                                     {/* ✅ PASTE THIS CLEAN VERSION: */}
                                                     <div className="flex items-center gap-3 mt-1.5">
-                                                        {editing?.id === task.id && editing.field === 'targetDuration' ? (
+                                                        {editing?.id === task.id && editing?.field === 'targetDuration' ? (
                                                             <input
                                                                 autoFocus
                                                                 className="w-16 text-xs text-slate-700 font-bold outline-none border-b border-blue-500 bg-transparent"
@@ -607,7 +705,7 @@ export default function TaskDashboard({ onStartTasks }: { onStartTasks?: (tasks:
                         <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-slate-400 group-hover/add-child:text-blue-500 transition-all">
                             <UserPlus size={24} />
                         </div>
-                        <div className="mt-4 text-sm font-bold text-slate-400">Add Child</div>
+                        <div className="mt-4 text-sm font-bold text-slate-400">Add Astronaut</div>
                     </div>
                 </div>
             </div>

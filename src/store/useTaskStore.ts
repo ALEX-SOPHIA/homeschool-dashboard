@@ -128,7 +128,7 @@ export const useTaskStore = create<TaskState>()(
                 const colorIdx = state.groups.length % GRADIENT_COLORS.length;
                 const newGroup: TaskGroup = {
                     id: `temp-child-${Date.now()}`,
-                    title: 'New Child',
+                    title: 'New Astronaut',
                     duration: '0m',
                     color: GRADIENT_COLORS[colorIdx],
                     tasks: []

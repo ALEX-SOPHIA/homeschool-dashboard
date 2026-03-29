@@ -204,7 +204,7 @@ export default function Sidebar() {
                                             <input
                                                 autoFocus
                                                 placeholder="e.g. Math, English..."
-                                                className="w-full px-3 py-2 text-xs font-medium bg-white border-2 border-blue-400 rounded-lg outline-none"
+                                                className="w-full px-3 py-2 border-2 border-blue-400 rounded-lg outline-none text-slate-900 font-bold bg-white placeholder-slate-300 shadow-sm transition-all focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
                                                 onBlur={() => setIsCreatingFor(null)}
                                                 onKeyDown={async (e) => {
                                                     if (e.key === 'Enter') {
@@ -247,7 +247,7 @@ export default function Sidebar() {
                     className="w-full mt-4 flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-slate-200/50 transition-colors text-slate-500 hover:text-slate-700 font-semibold text-sm border border-transparent hover:border-slate-200"
                 >
                     <UserPlus size={16} />
-                    Add Child
+                    Add Astronaut
                 </button>
             </div>
 
