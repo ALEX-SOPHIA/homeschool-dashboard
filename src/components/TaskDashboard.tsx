@@ -51,7 +51,7 @@ interface AstronautStat {
 
 /* ── 子组件：电影级火箭发射台 ── */
 // 👉 2. 修复：在参数里接收 astronautStats，并给它套上刚刚定义的类型 (解决 Cannot find name 报错)
-function RocketLaunchpad({ totalTasks, completedTasks, percentage, astronautStats, onClearTasks }: {
+function RocketLaunchpad({ totalTasks, percentage, astronautStats, onClearTasks }: {
     totalTasks: number;
     completedTasks: number;
     percentage: number;
@@ -59,9 +59,47 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage, astronautStat
     onClearTasks: () => void;
 }) {
     const [launchStatus, setLaunchStatus] = useState<'idle' | 'shaking' | 'liftoff' | 'completed'>('idle');
-    // 👉 ADD THESE TWO REFS (用于保存音频实例和播放状态，防止重复播放)
-    const igniteAudioRef = useRef<HTMLAudioElement | null>(null);
-    const audioPlayed = useRef({ shake: false, cheer: false });
+
+    // 👇 1. 组建火箭专用的 Audio Pool (音频池)
+    const audioPool = useRef<{ ignite: HTMLAudioElement | null; cheer: HTMLAudioElement | null }>({ ignite: null, cheer: null });
+    const audioUnlocked = useRef(false);
+
+    // 👇 2. 全局解锁器：监听用户的第一次交互 (The Global Unlocker)
+    useEffect(() => {
+        // 组件加载时，准备好弹药
+        audioPool.current.ignite = new Audio('/sounds/ignite.wav');
+        audioPool.current.cheer = new Audio('/sounds/cheer.wav');
+
+        const unlockAudios = () => {
+            if (audioUnlocked.current) return;
+
+            // 遍历并静音偷播
+            Object.values(audioPool.current).forEach(audio => {
+                if (audio) {
+                    audio.volume = 0;
+                    audio.play().then(() => {
+                        audio.pause();
+                        audio.currentTime = 0;
+                    }).catch(() => { }); // 这里的 catch 静默处理即可
+                }
+            });
+            audioUnlocked.current = true;
+
+            // 解锁成功后，卸载监听器，避免性能浪费
+            window.removeEventListener('click', unlockAudios);
+            window.removeEventListener('touchstart', unlockAudios);
+        };
+
+        // 绑定到整个窗口的点击/触摸事件上，且只执行一次 (once: true)
+        window.addEventListener('click', unlockAudios, { once: true });
+        window.addEventListener('touchstart', unlockAudios, { once: true });
+
+        return () => {
+            window.removeEventListener('click', unlockAudios);
+            window.removeEventListener('touchstart', unlockAudios);
+        };
+    }, []);
+
     const [stars, setStars] = useState<StarData[]>([]);
 
     useEffect(() => {
@@ -76,35 +114,31 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage, astronautStat
         return () => clearTimeout(starTimer);
     }, []);
 
+    // 👇 3. 终极发射逻辑调度 (The Orchestrator)
     useEffect(() => {
         if (percentage === 100 && totalTasks > 0) {
-
-            // 👉 修复：将同步的 setState 推迟到下一个事件循环 (Macro-task)，完美避开级联渲染警告
             const initTimer = setTimeout(() => setLaunchStatus('shaking'), 0);
 
-            if (!audioPlayed.current.shake) {
-                const audio = new Audio('/sounds/ignite.wav');
-                audio.volume = 0.6;
-                igniteAudioRef.current = audio;
-                audio.play().catch(e => console.warn("Audio play failed:", e));
-                audioPlayed.current.shake = true;
+            // 🚀 点火音效
+            if (audioPool.current.ignite) {
+                audioPool.current.ignite.volume = 0.6;
+                // 注意这里加上了 (e: any) 防止 TS 报错
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                audioPool.current.ignite.play().catch((e: any) => console.warn("Ignite play failed:", e));
             }
 
             const timer1 = setTimeout(() => {
                 setLaunchStatus('liftoff');
 
-                if (igniteAudioRef.current) {
+                // 引擎声音淡出逻辑 (Fade Out)
+                if (audioPool.current.ignite) {
+                    const igniteAudio = audioPool.current.ignite;
                     const fadeOut = setInterval(() => {
-                        if (igniteAudioRef.current) {
-                            const newVolume = igniteAudioRef.current.volume - 0.05;
-                            if (newVolume > 0) {
-                                igniteAudioRef.current.volume = newVolume;
-                            } else {
-                                igniteAudioRef.current.volume = 0;
-                                igniteAudioRef.current.pause();
-                                clearInterval(fadeOut);
-                            }
+                        if (igniteAudio.volume > 0.05) {
+                            igniteAudio.volume -= 0.05;
                         } else {
+                            igniteAudio.volume = 0;
+                            igniteAudio.pause();
                             clearInterval(fadeOut);
                         }
                     }, 150);
@@ -113,35 +147,35 @@ function RocketLaunchpad({ totalTasks, completedTasks, percentage, astronautStat
 
             const timer2 = setTimeout(() => {
                 setLaunchStatus('completed');
+                if (audioPool.current.ignite) audioPool.current.ignite.pause();
 
-                if (igniteAudioRef.current) {
-                    igniteAudioRef.current.pause();
-                    igniteAudioRef.current = null;
-                }
-                if (!audioPlayed.current.cheer) {
-                    const cheerAudio = new Audio('/sounds/cheer.wav');
-                    cheerAudio.volume = 0.8;
-                    cheerAudio.play().catch(e => console.warn("Audio play failed:", e));
-                    audioPlayed.current.cheer = true;
+                // 🎉 欢呼音效
+                if (audioPool.current.cheer) {
+                    audioPool.current.cheer.volume = 0.8;
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    audioPool.current.cheer.play().catch((e: any) => console.warn("Cheer play failed:", e));
                 }
             }, 3500);
 
-            // 记得把 initTimer 也加到清理函数里
             return () => { clearTimeout(initTimer); clearTimeout(timer1); clearTimeout(timer2); };
 
         } else if (percentage < 100) {
-            // 👉 修复：重置状态时同样使用 setTimeout 避开警告
             const resetTimer = setTimeout(() => setLaunchStatus('idle'), 0);
 
-            audioPlayed.current = { shake: false, cheer: false };
-            if (igniteAudioRef.current) {
-                igniteAudioRef.current.pause();
-                igniteAudioRef.current = null;
+            // 如果重置任务，同时切断所有可能还在播放的音频
+            if (audioPool.current.ignite) {
+                audioPool.current.ignite.pause();
+                audioPool.current.ignite.currentTime = 0;
             }
-
+            if (audioPool.current.cheer) {
+                audioPool.current.cheer.pause();
+                audioPool.current.cheer.currentTime = 0;
+            }
             return () => clearTimeout(resetTimer);
         }
     }, [percentage, totalTasks]);
+
+
 
     if (launchStatus === 'completed') {
         return (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useConcurrentTimers } from '@/hooks/useConcurrentTimers';
 import { TimerSession, useTimerStore } from '@/store/useTimerStore';
 import { useTaskStore } from '@/store/useTaskStore';
@@ -47,12 +47,16 @@ export default function TimerFullscreenModal({ sessions }: TimerFullscreenModalP
 
 function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti: boolean }) {
     const totalDurationMs = session.totalDurationMs || 3600000;
-    const { start, pause, reset, getElapsedMs, remove } = useConcurrentTimers();
+    const { start, pause, getElapsedMs, remove } = useConcurrentTimers();
     const { completeTask } = useTaskStore();
     const elapsedMotion = useMotionValue(getElapsedMs(session.id));
 
     // 👇 NEW: Interceptor State
     const [confirmModal, setConfirmModal] = useState<'complete' | 'cancel' | null>(null);
+    const successAudioRef = useRef<HTMLAudioElement | null>(null);
+    useEffect(() => {
+        successAudioRef.current = new Audio('/sounds/success.wav');
+    }, []);
 
     const handleAction = async (action: 'complete' | 'cancel', saveTime: boolean) => {
         const taskId = session.id.replace('session-', '');
@@ -60,17 +64,19 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
         const timeToSave = saveTime ? elapsedMinutes : 0;
 
         if (action === 'complete') {
-            // 🎵 1. Fire-and-forget Audio Cue (添加完成音效)
-            const completionAudio = new Audio('/sounds/success.wav'); 
-            completionAudio.volume = 0.7; 
-            completionAudio.play().catch(e => console.warn("Audio play failed:", e));
+            // 🎵 播放唯一的 Ref 实例 (完美解锁)
+            if (successAudioRef.current) {
+                successAudioRef.current.volume = 0.7; 
+                successAudioRef.current.play().catch(e => console.warn("Audio play failed:", e));
+            }
 
             // 2. Local UI Update
             completeTask(taskId);
             remove(session.id);
-            // 3. Database Sync (Using our new upgraded Action!)
+            // 3. Database Sync
             await updateTaskStatus(taskId, 'completed', timeToSave);
         } else {
+           
             // Cancel means we just remove the timer, but maybe we still save the time!
             remove(session.id);
             if (saveTime && timeToSave > 0) {
@@ -100,6 +106,19 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
         } else {
             handleAction('cancel', false); // < 1 min, just delete silently
         }
+    };
+
+    // 🎵 新增：专门针对 iOS/iPadOS 的音频解锁 Hack
+    const handleStart = () => {
+        // 👇 3. 偷播解锁这个唯一的实例
+        if (successAudioRef.current) {
+            successAudioRef.current.volume = 0; 
+            successAudioRef.current.play().then(() => {
+                successAudioRef.current?.pause();
+                if (successAudioRef.current) successAudioRef.current.currentTime = 0;
+            }).catch(e => console.warn("iOS Audio unlock failed:", e));
+        }
+        start(session.id);
     };
 
     useAnimationFrame(() => {
@@ -219,7 +238,7 @@ function SingleTimerRing({ session, isMulti }: { session: TimerSession, isMulti:
                         </button>
                     ) : (
                         <button
-                            onClick={() => start(session.id)}
+                            onClick={handleStart}
                             className="p-6 sm:p-8 bg-gradient-to-br from-[#1e2326] to-[#0f1112] border border-white/10 shadow-[inner_0_1px_1px_rgba(255,255,255,0.05),0_8px_30px_rgba(0,0,0,0.5)] hover:border-white/20 text-white hover:scale-[1.03] active:scale-95 rounded-3xl transition-all focus-visible:ring-2 focus-visible:ring-white/30"
                         >
                             <Play size={isMulti ? 32 : 40} className="fill-current ml-2" />
