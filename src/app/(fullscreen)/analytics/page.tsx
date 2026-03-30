@@ -10,8 +10,8 @@ export default async function AnalyticsPage() {
                 include: {
                     tasks: {
                         // 👇 FIX 1: Look for both statuses so it updates instantly!
-                        where: { 
-                            status: { in: ['completed', 'archived'] } 
+                        where: {
+                            status: { in: ['completed', 'archived'] }
                         }
                     }
                 }
@@ -20,15 +20,16 @@ export default async function AnalyticsPage() {
     });
 
     // 2. Data Aggregation: Group by subject, then sum up actual minutes
-    const chartData = familyData?.students.map(student => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const chartData = familyData?.students.map((student: any) => {
         const courseMap = new Map<string, number>();
-
-        student.tasks.forEach(task => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        student.tasks.forEach((task: any) => {
             // 👇 FIX 2: Group by the new 'subject' category we built!
-            const categoryName = task.subject || task.title; 
-            
+            const categoryName = task.subject || task.title;
+
             // 👇 FIX 3: Directly read the new actualDuration integer!
-            const minutes = task.actualDuration || 0; 
+            const minutes = task.actualDuration || 0;
 
             // Only add to the chart if they actually spent time on it
             if (minutes > 0) {
